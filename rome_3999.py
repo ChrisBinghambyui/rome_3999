@@ -2,10 +2,12 @@
 Rome 3999 (Arcade 3.x), Tron: Legacy look
 
 Screens: main menu, mode select, options, game (with pause and results).
-Modes: Gladiator (the arena levels), Campaign and Custom (placeholders for now).
-Gladiator has 16 levels. The first 8 fit on one screen (rectangle, circle,
-octagon). Levels 9 to 16 are big arenas built from rooms and doorways, and the
-camera follows you smoothly. Enemies in those levels hunt you through the rooms.
+Modes: Gladiator (16 arena levels), Endless (survive for a high score),
+Campaign and Custom (placeholders for now).
+Gladiator's first 8 levels fit on one screen (rectangle, circle, octagon).
+Levels 9 to 16 are big arenas built from rooms and doorways, and the camera
+follows you smoothly. Enemies in those levels hunt you through the rooms.
+Endless lets you pick any arena, how many enemies, and how many lives.
 
 Controls in game:
     WASD         move
@@ -19,7 +21,7 @@ Anywhere:
 Install:
     pip install arcade
 
-Progress and settings are saved to rome_3999_save.json next to this file.
+Progress, settings and high scores are saved to rome_3999_save.json next to this file.
 """
 
 import bisect
@@ -73,6 +75,14 @@ HUNT_RANGE = 520    # hunting enemies stop chasing and start strafing inside thi
 WALL = 36           # thickness of room walls in the big levels
 PIP_COUNT = 8       # difficulty pips on the level cards
 LEVELS_PER_PAGE = 8
+ICON_MAX_SCALE = 0.085   # biggest scale for the little arena maps
+
+MAX_TEXT_POINTS = 64     # text never renders bigger than this, huge fonts break
+
+ENDLESS_MAX_ENEMIES = 6
+ENDLESS_MAX_LIVES = 9
+SCORE_PER_KILL = 100
+ENDLESS_RAMP_KILLS = 40  # kills it takes for enemies to reach full endless difficulty
 
 PLAYER_COLOR = (40, 215, 255)
 ENEMY_COLORS = [(255, 130, 20), (255, 60, 90), (255, 200, 50), (190, 110, 255)]
@@ -342,6 +352,11 @@ def level_radius(level):
     return level.get("radius", ARENA_RADIUS)
 
 
+def endless_key(level_index, enemies, lives):
+    # High scores are kept per arena, enemy count and lives, so they compare fairly.
+    return str(level_index) + ":" + str(enemies) + ":" + str(lives)
+
+
 def glow_on():
     # Additive blending: overlapping light adds up instead of covering.
     ctx = arcade.get_window().ctx
@@ -408,8 +423,9 @@ def segment_hits_box(x0, y0, x1, y1, left, right, bottom, top):
 
 class CrispText:
     # Lays out in logical coordinates, but renders at real pixel size so the
-    # font stays sharp when the window is stretched. Only draw it while the
-    # screen camera (not the world camera) is active.
+    # font stays sharp when the window is stretched. The rendered size is
+    # capped at MAX_TEXT_POINTS because very large fonts break. Only draw it
+    # while the screen camera (not the world camera) is active.
     def __init__(self, text, x, y, color, size, anchor_x="center",
                  anchor_y="center", bold=False):
         self.x = x
@@ -449,7 +465,8 @@ class CrispText:
         if screen is None:
             return
         px, py = screen.to_pixels(self.x, self.y)
-        size = round(self.size * screen.scale * 2) / 2   # snap to half points
+        wanted = min(self.size * screen.scale, MAX_TEXT_POINTS)
+        size = round(wanted * 2) / 2   # snap to half points
         if size != self.last_size:
             self.label.font_size = size
             self.last_size = size
@@ -476,6 +493,10 @@ DEFAULTS = {
     "has_played": False,
     "current_level": 0,
     "unlocked": 1,
+    "endless_level": 0,
+    "endless_enemies": 2,
+    "endless_lives": 3,
+    "endless_scores": {},
 }
 SETTING_KEYS = ["master_volume", "music_volume", "sfx_volume", "fullscreen", "show_fps"]
 
@@ -483,6 +504,7 @@ SETTING_KEYS = ["master_volume", "music_volume", "sfx_volume", "fullscreen", "sh
 class SaveData:
     def __init__(self):
         self.data = dict(DEFAULTS)
+        self.data["endless_scores"] = {}
         self.load()
 
     def load(self):
@@ -501,6 +523,17 @@ class SaveData:
         self.data["unlocked"] = max(1, min(len(LEVELS), self.data["unlocked"]))
         self.data["current_level"] = max(0, min(self.data["unlocked"] - 1,
                                                 self.data["current_level"]))
+        self.data["endless_level"] = max(0, min(len(LEVELS) - 1, self.data["endless_level"]))
+        self.data["endless_enemies"] = max(1, min(ENDLESS_MAX_ENEMIES, self.data["endless_enemies"]))
+        self.data["endless_lives"] = max(1, min(ENDLESS_MAX_LIVES, self.data["endless_lives"]))
+
+        clean_scores = {}
+        raw_scores = self.data["endless_scores"]
+        for key in raw_scores:
+            value = raw_scores[key]
+            if isinstance(key, str) and type(value) == int and value > 0:
+                clean_scores[key] = value
+        self.data["endless_scores"] = clean_scores
 
     def save(self):
         try:
@@ -1982,6 +2015,47 @@ class MenuList:
             self.buttons[i].draw(i == self.selected, clock)
 
 
+def draw_level_icon(cx, cy, level, unlocked, max_width, max_height, max_scale):
+    # Tiny map of a level: arena outline, obstacles, and where everyone starts.
+    bounds = level_bounds(level)
+    mid_x = (bounds[0] + bounds[2]) / 2
+    mid_y = (bounds[1] + bounds[3]) / 2
+    width = bounds[2] - bounds[0]
+    height = bounds[3] - bounds[1]
+    scale = min(max_scale, max_width / width, max_height / height)
+
+    line_color = CONDUIT_COLOR
+    fill_color = (40, 70, 95)
+    if not unlocked:
+        line_color = (60, 85, 105)
+        fill_color = (30, 45, 60)
+
+    points = []
+    for p in arena_points(level["arena"], bounds, level_radius(level)):
+        points.append((cx + (p[0] - mid_x) * scale, cy + (p[1] - mid_y) * scale))
+    arcade.draw_polygon_outline(points, line_color, 2)
+
+    for spec in level["obstacles"]:
+        ox = cx + (spec[1] - mid_x) * scale
+        oy = cy + (spec[2] - mid_y) * scale
+        if spec[0] == "rect":
+            w = max(1.5, spec[3] * scale)
+            h = max(1.5, spec[4] * scale)
+            arcade.draw_lbwh_rectangle_filled(ox - w / 2, oy - h / 2, w, h, fill_color)
+        else:
+            arcade.draw_circle_filled(ox, oy, max(1.5, spec[3] * scale), fill_color)
+
+    if unlocked:
+        start = level["player_start"]
+        arcade.draw_circle_filled(cx + (start[0] - mid_x) * scale,
+                                  cy + (start[1] - mid_y) * scale, 3, PLAYER_COLOR)
+        for i in range(len(level["enemy_starts"])):
+            e = level["enemy_starts"][i]
+            arcade.draw_circle_filled(cx + (e[0] - mid_x) * scale,
+                                      cy + (e[1] - mid_y) * scale, 3,
+                                      ENEMY_COLORS[i % len(ENEMY_COLORS)])
+
+
 # ------------------------------------------------------------------ views
 
 class BaseView(arcade.View):
@@ -2142,7 +2216,6 @@ class LevelSelectView(BaseView):
     CARD_GAP_X = 24
     CARD_GAP_Y = 20
     FIRST_ROW_Y = 430
-    ICON_SCALE = 0.085
 
     def __init__(self, previous_view):
         super().__init__()
@@ -2269,46 +2342,6 @@ class LevelSelectView(BaseView):
             self.selected = index
             self.start_level(index)
 
-    def draw_icon(self, cx, cy, level, unlocked):
-        # Tiny map of the level: arena outline, obstacles, and where everyone starts.
-        bounds = level_bounds(level)
-        mid_x = (bounds[0] + bounds[2]) / 2
-        mid_y = (bounds[1] + bounds[3]) / 2
-        width = bounds[2] - bounds[0]
-        height = bounds[3] - bounds[1]
-        scale = min(self.ICON_SCALE, 140 / width, 64 / height)
-
-        line_color = CONDUIT_COLOR
-        fill_color = (40, 70, 95)
-        if not unlocked:
-            line_color = (60, 85, 105)
-            fill_color = (30, 45, 60)
-
-        points = []
-        for p in arena_points(level["arena"], bounds, level_radius(level)):
-            points.append((cx + (p[0] - mid_x) * scale, cy + (p[1] - mid_y) * scale))
-        arcade.draw_polygon_outline(points, line_color, 2)
-
-        for spec in level["obstacles"]:
-            ox = cx + (spec[1] - mid_x) * scale
-            oy = cy + (spec[2] - mid_y) * scale
-            if spec[0] == "rect":
-                w = max(1.5, spec[3] * scale)
-                h = max(1.5, spec[4] * scale)
-                arcade.draw_lbwh_rectangle_filled(ox - w / 2, oy - h / 2, w, h, fill_color)
-            else:
-                arcade.draw_circle_filled(ox, oy, max(1.5, spec[3] * scale), fill_color)
-
-        if unlocked:
-            start = level["player_start"]
-            arcade.draw_circle_filled(cx + (start[0] - mid_x) * scale,
-                                      cy + (start[1] - mid_y) * scale, 3, PLAYER_COLOR)
-            for i in range(len(level["enemy_starts"])):
-                e = level["enemy_starts"][i]
-                arcade.draw_circle_filled(cx + (e[0] - mid_x) * scale,
-                                          cy + (e[1] - mid_y) * scale, 3,
-                                          ENEMY_COLORS[i % len(ENEMY_COLORS)])
-
     def draw_card(self, index):
         cx = self.card_centers[index][0]
         cy = self.card_centers[index][1]
@@ -2341,7 +2374,7 @@ class LevelSelectView(BaseView):
         arcade.draw_line(right - 10, bottom + 10, right - 30, bottom + 10, tick, 2)
         arcade.draw_line(right - 10, bottom + 10, right - 10, bottom + 30, tick, 2)
 
-        self.draw_icon(cx, cy - 8, level, unlocked)
+        draw_level_icon(cx, cy - 8, level, unlocked, 140, 64, ICON_MAX_SCALE)
 
         if unlocked:
             number_color = WHITE_HOT
@@ -2397,16 +2430,21 @@ class LevelSelectView(BaseView):
 
 
 MODES = [
-    {"name": "GLADIATOR MODE", "blurb": "PROVE YOURSELF", "ready": True},
-    {"name": "CAMPAIGN", "blurb": "REWRITE THE LEGACY", "ready": False},
-    {"name": "CUSTOM", "blurb": "BUILD YOUR OWN BATTLES", "ready": False},
+    {"id": "gladiator", "name": "GLADIATOR MODE", "blurb": "PROVE YOURSELF",
+     "ready": True, "status": str(len(LEVELS)) + " ARENAS"},
+    {"id": "endless", "name": "ENDLESS", "blurb": "CHASE A HIGH SCORE",
+     "ready": True, "status": "SURVIVE"},
+    {"id": "campaign", "name": "CAMPAIGN", "blurb": "REWRITE THE LEGACY",
+     "ready": False, "status": "COMING SOON"},
+    {"id": "custom", "name": "CUSTOM", "blurb": "BUILD YOUR OWN BATTLES",
+     "ready": False, "status": "COMING SOON"},
 ]
 
 
 class ModeSelectView(BaseView):
-    CARD_WIDTH = 260
+    CARD_WIDTH = 200
     CARD_HEIGHT = 300
-    CARD_SPACING = 290
+    CARD_SPACING = 215
     CARD_Y = 340
 
     def __init__(self, previous_view):
@@ -2427,13 +2465,9 @@ class ModeSelectView(BaseView):
             cx = CENTER_X + (i - (len(MODES) - 1) / 2) * self.CARD_SPACING
             self.card_xs.append(cx)
             mode = MODES[i]
-            self.name_texts.append(make_text(mode["name"], cx, self.CARD_Y - 30, WHITE_HOT, 17, bold=True))
+            self.name_texts.append(make_text(mode["name"], cx, self.CARD_Y - 30, WHITE_HOT, 15, bold=True))
             self.blurb_texts.append(make_text(mode["blurb"], cx, self.CARD_Y - 62, TEXT_DIM, 11))
-            if mode["ready"]:
-                status = str(len(LEVELS)) + " ARENAS"
-            else:
-                status = "COMING SOON"
-            self.status_texts.append(make_text(status, cx, self.CARD_Y - 112, TEXT_DIM, 12, bold=True))
+            self.status_texts.append(make_text(mode["status"], cx, self.CARD_Y - 112, TEXT_DIM, 12, bold=True))
 
         self.selected = 0
         self.back_selected = False
@@ -2443,8 +2477,10 @@ class ModeSelectView(BaseView):
 
     def open_mode(self, index):
         mode = MODES[index]
-        if index == 0:
+        if mode["id"] == "gladiator":
             self.window.show_view(LevelSelectView(self))
+        elif mode["id"] == "endless":
+            self.window.show_view(EndlessSetupView(self))
         else:
             self.window.show_view(PlaceholderView(self, mode["name"], mode["blurb"]))
 
@@ -2486,8 +2522,8 @@ class ModeSelectView(BaseView):
             self.selected = index
             self.open_mode(index)
 
-    def draw_icon(self, index, cx, cy, color):
-        if index == 0:
+    def draw_icon(self, mode_id, cx, cy, color):
+        if mode_id == "gladiator":
             # a disc: rim, inner ring, spinning arcs
             arcade.draw_circle_outline(cx, cy, 38, color, 4)
             arcade.draw_circle_outline(cx, cy, 20, with_alpha(color, 200), 2)
@@ -2495,7 +2531,21 @@ class ModeSelectView(BaseView):
                 start = self.clock * 120 + i * 120
                 arcade.draw_arc_outline(cx, cy, 58, 58, with_alpha(color, 230),
                                         start, start + 60, 2)
-        elif index == 1:
+        elif mode_id == "endless":
+            # an infinity loop with a light running around it
+            previous = None
+            for i in range(41):
+                t = i * math.tau / 40
+                d = 1.0 + math.sin(t) * math.sin(t)
+                point = (cx + 46 * math.cos(t) / d, cy + 46 * math.sin(t) * math.cos(t) / d)
+                if previous is not None:
+                    arcade.draw_line(previous[0], previous[1], point[0], point[1], color, 3)
+                previous = point
+            t = self.clock * 2.5
+            d = 1.0 + math.sin(t) * math.sin(t)
+            arcade.draw_circle_filled(cx + 46 * math.cos(t) / d,
+                                      cy + 46 * math.sin(t) * math.cos(t) / d, 5, WHITE_HOT)
+        elif mode_id == "campaign":
             # a route with three stops
             nodes = [(cx - 40, cy - 22), (cx, cy + 14), (cx + 40, cy - 8)]
             arcade.draw_line(nodes[0][0], nodes[0][1], nodes[1][0], nodes[1][1], color, 2)
@@ -2522,7 +2572,8 @@ class ModeSelectView(BaseView):
         right = cx + self.CARD_WIDTH / 2
         bottom = cy - self.CARD_HEIGHT / 2
         top = cy + self.CARD_HEIGHT / 2
-        ready = MODES[index]["ready"]
+        mode = MODES[index]
+        ready = mode["ready"]
         selected = (index == self.selected)
 
         arcade.draw_lrbt_rectangle_filled(left, right, bottom, top, (6, 9, 16, 240))
@@ -2553,7 +2604,7 @@ class ModeSelectView(BaseView):
             icon_color = (70, 100, 125)
             self.name_texts[index].color = (130, 160, 180)
             self.status_texts[index].color = (110, 140, 160)
-        self.draw_icon(index, cx, cy + 62, icon_color)
+        self.draw_icon(mode["id"], cx, cy + 62, icon_color)
         self.name_texts[index].draw()
         self.blurb_texts[index].draw()
         self.status_texts[index].draw()
@@ -2567,6 +2618,192 @@ class ModeSelectView(BaseView):
         for i in range(len(MODES)):
             self.draw_card(i)
         self.back_button.draw(self.back_selected, self.clock)
+        self.hint.draw()
+        self.draw_fps()
+
+
+class EndlessSetupView(BaseView):
+    # Pick the arena, how many enemies, and how many lives, then start a run.
+    PANEL_HALF = 330
+    VALUE_X = CENTER_X + 140
+
+    def __init__(self, previous_view):
+        super().__init__()
+        self.previous_view = previous_view
+        self.backdrop = ArenaBackdrop()
+
+        save = self.window.save
+        self.level_index = save.get("endless_level")
+        self.enemies = save.get("endless_enemies")
+        self.lives = save.get("endless_lives")
+
+        self.rows = [
+            {"kind": "choice", "key": "arena", "label": "ARENA"},
+            {"kind": "choice", "key": "enemies", "label": "ENEMIES"},
+            {"kind": "choice", "key": "lives", "label": "LIVES"},
+            {"kind": "button", "key": "start", "label": "START RUN"},
+            {"kind": "button", "key": "back", "label": "BACK"},
+        ]
+        self.selected = 3   # START RUN, so ENTER goes straight into a run
+
+        self.title = make_text("ENDLESS MODE", CENTER_X, 582, WHITE_HOT, 30, bold=True)
+        self.subtitle = make_text("SURVIVE FOR A HIGH SCORE", CENTER_X, 548, TEXT_DIM, 12)
+        self.hint = make_text("UP / DOWN SELECT     LEFT / RIGHT CHANGE     ENTER START     ESC BACK",
+                              CENTER_X, 22, (90, 170, 200), 11)
+        self.best_label = make_text("BEST SCORE FOR THIS SETUP", CENTER_X, 210, TEXT_DIM, 12)
+        self.best_value = make_text("---", CENTER_X, 182, WHITE_HOT, 26, bold=True)
+
+        self.label_texts = []
+        self.value_texts = []
+        for i in range(len(self.rows)):
+            y = self.row_y(i)
+            if self.rows[i]["kind"] == "button":
+                self.label_texts.append(make_text(self.rows[i]["label"], CENTER_X, y,
+                                                  TEXT_DIM, 16, bold=True))
+                self.value_texts.append(None)
+            else:
+                self.label_texts.append(make_text(self.rows[i]["label"],
+                                                  CENTER_X - self.PANEL_HALF + 24, y,
+                                                  TEXT_DIM, 16, anchor_x="left", bold=True))
+                self.value_texts.append(make_text("", self.VALUE_X, y, WHITE_HOT, 14, bold=True))
+
+    def row_y(self, index):
+        return 480 - index * 56
+
+    def go_back(self):
+        self.window.show_view(self.previous_view)
+
+    def value_text(self, key):
+        if key == "arena":
+            return level_label(self.level_index) + "  " + LEVELS[self.level_index]["name"]
+        if key == "enemies":
+            return str(self.enemies)
+        return str(self.lives)
+
+    def adjust(self, key, step):
+        save = self.window.save
+        if key == "arena":
+            self.level_index = (self.level_index + step) % len(LEVELS)
+            save.set("endless_level", self.level_index)
+        elif key == "enemies":
+            self.enemies = max(1, min(ENDLESS_MAX_ENEMIES, self.enemies + step))
+            save.set("endless_enemies", self.enemies)
+        elif key == "lives":
+            self.lives = max(1, min(ENDLESS_MAX_LIVES, self.lives + step))
+            save.set("endless_lives", self.lives)
+
+    def start_run(self):
+        setup = {"enemies": self.enemies, "lives": self.lives}
+        self.window.show_view(GameView(self.level_index, setup))
+
+    def update_view(self, delta_time):
+        self.backdrop.update(delta_time)
+
+    def key_pressed(self, key, modifiers):
+        row = self.rows[self.selected]
+        if key == arcade.key.ESCAPE:
+            self.go_back()
+        elif key == arcade.key.UP or key == arcade.key.W:
+            self.selected = (self.selected - 1) % len(self.rows)
+        elif key == arcade.key.DOWN or key == arcade.key.S:
+            self.selected = (self.selected + 1) % len(self.rows)
+        elif key == arcade.key.LEFT or key == arcade.key.A:
+            if row["kind"] == "choice":
+                self.adjust(row["key"], -1)
+        elif key == arcade.key.RIGHT or key == arcade.key.D:
+            if row["kind"] == "choice":
+                self.adjust(row["key"], 1)
+        elif key == arcade.key.ENTER or key == arcade.key.NUM_ENTER or key == arcade.key.SPACE:
+            if row["key"] == "back":
+                self.go_back()
+            else:
+                self.start_run()
+
+    def row_at(self, lx, ly):
+        if abs(lx - CENTER_X) > self.PANEL_HALF:
+            return -1
+        for i in range(len(self.rows)):
+            if abs(ly - self.row_y(i)) <= 24:
+                return i
+        return -1
+
+    def mouse_moved(self, lx, ly):
+        index = self.row_at(lx, ly)
+        if index >= 0:
+            self.selected = index
+
+    def mouse_pressed(self, lx, ly, button):
+        if button != arcade.MOUSE_BUTTON_LEFT:
+            return
+        index = self.row_at(lx, ly)
+        if index < 0:
+            return
+        self.selected = index
+        row = self.rows[index]
+        if row["kind"] == "choice":
+            # left of the value is "less", right of it is "more"
+            if lx > CENTER_X:
+                if lx < self.VALUE_X:
+                    self.adjust(row["key"], -1)
+                else:
+                    self.adjust(row["key"], 1)
+        elif row["key"] == "start":
+            self.start_run()
+        elif row["key"] == "back":
+            self.go_back()
+
+    def draw_row(self, index):
+        row = self.rows[index]
+        y = self.row_y(index)
+        selected = (index == self.selected)
+        left = CENTER_X - self.PANEL_HALF
+        right = CENTER_X + self.PANEL_HALF
+
+        if selected:
+            glow_on()
+            arcade.draw_lrbt_rectangle_filled(left, right, y - 22, y + 22,
+                                              with_alpha(PLAYER_COLOR, 16))
+            arcade.draw_lrbt_rectangle_outline(left, right, y - 22, y + 22,
+                                               with_alpha(PLAYER_COLOR, 60), 8)
+            glow_off()
+            arcade.draw_lrbt_rectangle_outline(left, right, y - 22, y + 22, CONDUIT_COLOR, 2)
+            self.label_texts[index].color = WHITE_HOT
+        else:
+            arcade.draw_lrbt_rectangle_outline(left, right, y - 22, y + 22, (40, 70, 95, 255), 1)
+            self.label_texts[index].color = TEXT_DIM
+        self.label_texts[index].draw()
+
+        if row["kind"] == "choice":
+            arrow_color = TEXT_DIM
+            if selected:
+                arrow_color = PLAYER_COLOR
+            vx = self.VALUE_X
+            arcade.draw_triangle_filled(vx - 128, y, vx - 116, y + 8, vx - 116, y - 8, arrow_color)
+            arcade.draw_triangle_filled(vx + 128, y, vx + 116, y + 8, vx + 116, y - 8, arrow_color)
+            self.value_texts[index].text = self.value_text(row["key"])
+            self.value_texts[index].draw()
+
+    def on_draw(self):
+        self.clear()
+        self.screen.use()
+        self.draw_backdrop(self.backdrop)
+
+        self.title.draw()
+        self.subtitle.draw()
+        for i in range(len(self.rows)):
+            self.draw_row(i)
+
+        key = endless_key(self.level_index, self.enemies, self.lives)
+        best = self.window.save.data["endless_scores"].get(key, 0)
+        if best > 0:
+            self.best_value.text = str(best)
+        else:
+            self.best_value.text = "---"
+        self.best_label.draw()
+        self.best_value.draw()
+
+        draw_level_icon(CENTER_X, 112, LEVELS[self.level_index], True, 260, 80, 0.2)
+
         self.hint.draw()
         self.draw_fps()
 
@@ -2817,17 +3054,36 @@ class OptionsView(BaseView):
 
 
 class GameView(BaseView):
-    def __init__(self, level_index):
+    # endless is None for a normal Gladiator level, or a dict like
+    # {"enemies": 3, "lives": 5} for an endless run on that arena.
+    def __init__(self, level_index, endless=None):
         super().__init__()
         self.level_index = level_index
-        self.level = LEVELS[level_index]
+        self.endless = endless
+        self.is_endless = endless is not None
+        self.level = dict(LEVELS[level_index])
         self.arena = make_arena(self.level)
         self.backdrop = ArenaBackdrop(self.arena)
 
+        self.lives_total = LIVES
+        self.endless_key = ""
+        self.best_score = 0
+        self.new_best = False
+
         save = self.window.save
-        save.data["has_played"] = True
-        save.data["current_level"] = level_index
-        save.save()
+        if self.is_endless:
+            self.lives_total = endless["lives"]
+            self.endless_key = endless_key(level_index, endless["enemies"], endless["lives"])
+            self.best_score = save.data["endless_scores"].get(self.endless_key, 0)
+            self.level["enemies"] = endless["enemies"]
+            self.level["enemy_starts"] = self.build_endless_spawns(endless["enemies"])
+            self.level["kills"] = 0
+            self.level["speed"] = max(self.level["speed"], 100)
+        else:
+            save.data["has_played"] = True
+            save.data["current_level"] = level_index
+            save.save()
+        self.base_level = dict(self.level)
 
         self.keys_down = set()
         self.mouse_x = WIDTH / 2   # mouse position on the screen layout (not the world)
@@ -2842,7 +3098,7 @@ class GameView(BaseView):
             enemy = Fighter(spot[0], spot[1], ENEMY_COLORS[i % len(ENEMY_COLORS)], "enemy")
             enemy.facing = math.pi
             self.enemies.append(enemy)
-            self.brains.append(EnemyBrain(enemy, self.level, self.arena, i * 0.8))
+            self.brains.append(EnemyBrain(enemy, self.level, self.arena, min(i * 0.8, 3.0)))
         self.fighters = [self.player] + self.enemies
 
         self.camera = FollowCamera()
@@ -2859,10 +3115,17 @@ class GameView(BaseView):
         self.overlay_sub = None
 
         font_hint = (90, 170, 200)
-        self.level_text = make_text("LEVEL " + level_label(level_index) + "   " + self.level["name"],
-                                    CENTER_X, HEIGHT - 40, CONDUIT_COLOR, 15, bold=True)
-        self.kills_label = make_text("KILLS", 40, HEIGHT - 24, font_hint, 11, anchor_x="left")
+        if self.is_endless:
+            title = "ENDLESS   " + level_label(level_index) + " " + self.level["name"]
+            kills_text = "SCORE"
+        else:
+            title = "LEVEL " + level_label(level_index) + "   " + self.level["name"]
+            kills_text = "KILLS"
+        self.level_text = make_text(title, CENTER_X, HEIGHT - 40, CONDUIT_COLOR, 15, bold=True)
+        self.kills_label = make_text(kills_text, 40, HEIGHT - 24, font_hint, 11, anchor_x="left")
         self.lives_label = make_text("LIVES", WIDTH - 40, HEIGHT - 24, font_hint, 11, anchor_x="right")
+        self.score_text = make_text("0", 40, HEIGHT - 50, WHITE_HOT, 20, anchor_x="left", bold=True)
+        self.best_text = make_text("", 40, HEIGHT - 76, TEXT_DIM, 11, anchor_x="left")
         self.hint = make_text("WASD MOVE      CLICK THROW      SPACE RECALL      ESC PAUSE",
                               CENTER_X, 22, font_hint, 11)
 
@@ -2871,6 +3134,51 @@ class GameView(BaseView):
         if not self.camera_ready:
             self.camera.snap(self.player.x, self.player.y, self.arena, self.screen)
             self.camera_ready = True
+
+    # ------------------------------------------------------------ endless helpers
+
+    def build_endless_spawns(self, count):
+        # Uses the level's own enemy spots first, then finds more random ones.
+        base = list(self.level["enemy_starts"])
+        spawns = base[:count]
+        player = self.level["player_start"]
+        attempts = 0
+        while len(spawns) < count and attempts < 200:
+            attempts += 1
+            point = self.arena.random_point(PLAYER_RADIUS + 20, player[0], player[1], 300)
+            if point is None:
+                continue
+            too_close = False
+            for spot in spawns:
+                if math.hypot(point[0] - spot[0], point[1] - spot[1]) < 90:
+                    too_close = True
+            if not too_close:
+                spawns.append(point)
+        while len(spawns) < count:
+            spawns.append(base[len(spawns) % len(base)])
+        return spawns
+
+    def score(self):
+        return self.kills * SCORE_PER_KILL
+
+    def apply_ramp(self):
+        # Enemies get faster, throw sooner, and aim better as the kills pile up.
+        ramp = min(1.0, self.kills / ENDLESS_RAMP_KILLS)
+        self.level["speed"] = self.base_level["speed"] * (1.0 + 0.4 * ramp)
+        self.level["interval"] = self.base_level["interval"] * (1.0 - 0.4 * ramp)
+        self.level["error"] = self.base_level["error"] * (1.0 - 0.5 * ramp)
+
+    def record_endless_score(self):
+        # Saves the score if it beats the old best. Returns True for a new best.
+        if not self.is_endless:
+            return False
+        scores = self.window.save.data["endless_scores"]
+        old = scores.get(self.endless_key, 0)
+        if self.score() > old:
+            scores[self.endless_key] = self.score()
+            self.window.save.save()
+            return True
+        return False
 
     # ------------------------------------------------------------ overlays
 
@@ -2893,6 +3201,15 @@ class GameView(BaseView):
             sub = "DEREZZED " + str(self.kills) + "     LIVES LOST " + str(self.deaths)
             if self.level_index == len(LEVELS) - 1:
                 sub = "ALL LEVELS CLEARED     " + sub
+        elif self.is_endless:
+            entries = [("RETRY", self.restart), ("CHANGE SETUP", self.endless_setup),
+                       ("MAIN MENU", self.main_menu)]
+            title = "RUN OVER"
+            title_color = ENEMY_COLOR
+            best = self.window.save.data["endless_scores"].get(self.endless_key, 0)
+            sub = "SCORE " + str(self.score()) + "     BEST " + str(best)
+            if self.new_best:
+                sub = "NEW BEST     " + sub
         else:
             entries = [("RETRY", self.restart), ("MAIN MENU", self.main_menu)]
             title = "DEREZZED"
@@ -2907,7 +3224,8 @@ class GameView(BaseView):
         self.keys_down = set()
 
     def restart(self):
-        self.window.show_view(GameView(self.level_index))
+        self.record_endless_score()
+        self.window.show_view(GameView(self.level_index, self.endless))
 
     def next_level(self):
         self.window.show_view(GameView(self.level_index + 1))
@@ -2915,13 +3233,21 @@ class GameView(BaseView):
     def open_options(self):
         self.window.show_view(OptionsView(self))
 
+    def endless_setup(self):
+        self.record_endless_score()
+        self.window.show_view(EndlessSetupView(ModeSelectView(MenuView())))
+
     def main_menu(self):
+        self.record_endless_score()
         self.window.show_view(MenuView())
 
     def finish(self, result):
         self.finished = True
         self.result = result
         self.result_timer = 1.1
+        if self.is_endless:
+            self.new_best = self.record_endless_score()
+            return
         if result == "won":
             save = self.window.save
             save.data["unlocked"] = max(save.get("unlocked"),
@@ -3062,14 +3388,20 @@ class GameView(BaseView):
                         self.deaths += 1
                     else:
                         self.kills += 1
+                        if self.is_endless:
+                            self.apply_ramp()
                     self.check_result()
 
     def check_result(self):
         if self.finished:
             return
+        if self.is_endless:
+            if self.deaths >= self.lives_total:
+                self.finish("lost")
+            return
         if self.kills >= self.level["kills"]:
             self.finish("won")
-        elif self.deaths >= LIVES:
+        elif self.deaths >= self.lives_total:
             self.finish("lost")
 
     def update_respawns(self, delta_time):
@@ -3154,8 +3486,16 @@ class GameView(BaseView):
         self.level_text.draw()
         self.kills_label.draw()
         self.lives_label.draw()
-        self.draw_pips(46, HEIGHT - 46, self.level["kills"], self.kills, 1)
-        self.draw_pips(WIDTH - 46, HEIGHT - 46, LIVES, LIVES - self.deaths, -1)
+        if self.is_endless:
+            best = max(self.best_score, self.score())
+            self.score_text.text = str(self.score())
+            self.best_text.text = "BEST " + str(best)
+            self.score_text.draw()
+            self.best_text.draw()
+        else:
+            self.draw_pips(46, HEIGHT - 46, self.level["kills"], self.kills, 1)
+        self.draw_pips(WIDTH - 46, HEIGHT - 46, self.lives_total,
+                       self.lives_total - self.deaths, -1)
         self.hint.draw()
 
     def draw_overlay(self):
