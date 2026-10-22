@@ -1,0 +1,10 @@
+{
+  "master_volume": 80,
+  "music_volume": 70,
+  "sfx_volume": 80,
+  "fullscreen": false,
+  "show_fps": false,
+  "has_played": true,
+  "current_level": 15,
+  "unlocked": 16
+}
