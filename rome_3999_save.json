@@ -5,6 +5,15 @@
   "fullscreen": false,
   "show_fps": false,
   "has_played": true,
-  "current_level": 15,
-  "unlocked": 16
+  "current_level": 11,
+  "unlocked": 16,
+  "endless_level": 15,
+  "endless_enemies": 6,
+  "endless_lives": 5,
+  "endless_records": {
+    "15:6:5": {
+      "time": 80.31,
+      "kills": 31
+    }
+  }
 }

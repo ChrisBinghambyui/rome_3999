@@ -2,12 +2,16 @@
 Rome 3999 (Arcade 3.x), Tron: Legacy look
 
 Screens: main menu, mode select, options, game (with pause and results).
-Modes: Gladiator (16 arena levels), Endless (survive for a high score),
-Campaign and Custom (placeholders for now).
+Modes: Gladiator (16 arena levels), Endless (survive as long as you can),
+Campaign (one mission so far) and Custom (placeholder for now).
 Gladiator's first 8 levels fit on one screen (rectangle, circle, octagon).
 Levels 9 to 16 are big arenas built from rooms and doorways, and the camera
 follows you smoothly. Enemies in those levels hunt you through the rooms.
 Endless lets you pick any arena, how many enemies, and how many lives.
+Your records there are the longest time survived and the most kills.
+Campaign mission 1 starts with a long corridor. At the end of it you step into
+a big circular arena, an announcer opens the match (you can't move during it),
+and the obstacles draw themselves in before the fight starts.
 
 Controls in game:
     WASD         move
@@ -21,7 +25,7 @@ Anywhere:
 Install:
     pip install arcade
 
-Progress, settings and high scores are saved to rome_3999_save.json next to this file.
+Progress, settings and records are saved to rome_3999_save.json next to this file.
 """
 
 import bisect
@@ -81,8 +85,17 @@ MAX_TEXT_POINTS = 64     # text never renders bigger than this, huge fonts break
 
 ENDLESS_MAX_ENEMIES = 6
 ENDLESS_MAX_LIVES = 9
-SCORE_PER_KILL = 100
 ENDLESS_RAMP_KILLS = 40  # kills it takes for enemies to reach full endless difficulty
+
+# Campaign cutscene timing (seconds, except the typing speed)
+CORRIDOR_EXIT_MARGIN = 70       # how far from the corridor's end the exit gate sits
+FADE_OUT_TIME = 0.6
+FADE_IN_TIME = 0.8
+SPEECH_LEAD = 0.6               # quiet moment before the announcer starts
+SPEECH_CHARS_PER_SECOND = 34
+SPEECH_HOLD = 1.1               # how long a finished line stays up
+REVEAL_TIME = 1.6               # obstacles trace in, then flash solid at the end
+CUTSCENE_PHASES = ("fading_out", "fading_in", "speech", "reveal")
 
 PLAYER_COLOR = (40, 215, 255)
 ENEMY_COLORS = [(255, 130, 20), (255, 60, 90), (255, 200, 50), (190, 110, 255)]
@@ -180,6 +193,16 @@ def circle_ring(center_x, center_y, ring_radius, count, radius, start_angle):
         angle = math.radians(start_angle) + i * math.tau / count
         specs.append(("circle", center_x + ring_radius * math.cos(angle),
                       center_y + ring_radius * math.sin(angle), radius))
+    return specs
+
+
+def pillar_ring(center_x, center_y, ring_radius, count, size, start_angle):
+    # Square pillars spaced evenly around a circle.
+    specs = []
+    for i in range(count):
+        angle = math.radians(start_angle) + i * math.tau / count
+        specs.append(("rect", center_x + ring_radius * math.cos(angle),
+                      center_y + ring_radius * math.sin(angle), size, size))
     return specs
 
 
@@ -317,6 +340,27 @@ LEVELS = [
      "enemy_starts": [(300, 300), (2060, 300), (300, 1220), (2060, 1220)]},
 ]
 
+# Campaign missions. These work like the levels above, with a few extras:
+#   "corridor"  the long hallway the mission starts in (bounds and player_start)
+#   "obstacles" what is in the arena from the start (nothing here)
+#   "reveal"    obstacles that draw themselves in after the announcer is done
+#   "speech"    the announcer's lines, shown one at a time
+# "player_start" and "enemy_starts" belong to the arena, not the corridor.
+CAMPAIGN_LEVELS = [
+    {"name": "THE LONG WALK", "arena": "circle", "bounds": (140, 140, 1260, 1260),
+     "radius": 560,
+     "corridor": {"bounds": (60, 60, 3060, 320), "player_start": (160, 190)},
+     "obstacles": [],
+     "reveal": pillar_ring(700, 700, 300, 6, 56, 0) + [("rect", 700, 700, 64, 64)],
+     "speech": ["CITIZENS OF ROME 3999. WELCOME TO THE GRID.",
+                "TONIGHT, A NEW CHALLENGER ENTERS THE ARENA.",
+                "THE GLADIATOR MATCH IS ABOUT TO BEGIN.",
+                "LET THE ARENA SHOW NO MERCY."],
+     "enemies": 2, "kills": 6, "interval": 2.0, "error": 0.20, "speed": 130,
+     "hunt": True, "difficulty": 3,
+     "player_start": (200, 700), "enemy_starts": [(1130, 700), (900, 1020)]},
+]
+
 
 # ------------------------------------------------------------------ helpers
 
@@ -344,6 +388,17 @@ def level_label(index):
     return str(number)
 
 
+def format_time(seconds):
+    # 83.4 becomes "1:23"
+    total = int(seconds)
+    minutes = total // 60
+    secs = total % 60
+    text = str(secs)
+    if secs < 10:
+        text = "0" + text
+    return str(minutes) + ":" + text
+
+
 def level_bounds(level):
     return level.get("bounds", DEFAULT_BOUNDS)
 
@@ -353,7 +408,7 @@ def level_radius(level):
 
 
 def endless_key(level_index, enemies, lives):
-    # High scores are kept per arena, enemy count and lives, so they compare fairly.
+    # Records are kept per arena, enemy count and lives, so they compare fairly.
     return str(level_index) + ":" + str(enemies) + ":" + str(lives)
 
 
@@ -423,55 +478,81 @@ def segment_hits_box(x0, y0, x1, y1, left, right, bottom, top):
 
 class CrispText:
     # Lays out in logical coordinates, but renders at real pixel size so the
-    # font stays sharp when the window is stretched. The rendered size is
-    # capped at MAX_TEXT_POINTS because very large fonts break. Only draw it
+    # font stays sharp when the window is stretched. The label is rebuilt when
+    # the size changes (resizing a pyglet label in place leaves it clipped or
+    # invisible). The rendered size is capped at MAX_TEXT_POINTS. Only draw it
     # while the screen camera (not the world camera) is active.
     def __init__(self, text, x, y, color, size, anchor_x="center",
                  anchor_y="center", bold=False):
         self.x = x
         self.y = y
         self.size = size
-        self.label = arcade.Text(text, 0, 0, color, size, anchor_x=anchor_x,
-                                 anchor_y=anchor_y, bold=bold, font_name=FONT)
+        self.string = text
+        self.rgba = color
+        self.anchor_x_value = anchor_x
+        self.anchor_y_value = anchor_y
+        self.bold = bold
+        self.label = None
         self.last_size = None
+        self.dirty = True
 
     @property
     def text(self):
-        return self.label.text
+        return self.string
 
     @text.setter
     def text(self, value):
-        if self.label.text != value:
-            self.label.text = value
+        if self.string != value:
+            self.string = value
+            self.dirty = True
 
     @property
     def color(self):
-        return self.label.color
+        return self.rgba
 
     @color.setter
     def color(self, value):
-        self.label.color = value
+        if tuple(self.rgba) != tuple(value):
+            self.rgba = value
+            self.dirty = True
 
     @property
     def anchor_x(self):
-        return self.label.anchor_x
+        return self.anchor_x_value
 
     @anchor_x.setter
     def anchor_x(self, value):
-        self.label.anchor_x = value
+        if self.anchor_x_value != value:
+            self.anchor_x_value = value
+            self.dirty = True
+
+    def pick_size(self, scale):
+        wanted = min(self.size * scale, MAX_TEXT_POINTS)
+        if wanted < 20:
+            size = int(round(wanted))
+        else:
+            size = int(round(wanted / 2)) * 2   # steps of 2 points when large
+        if size < 6:
+            size = 6
+        return size
 
     def draw(self):
         screen = Screen.active
         if screen is None:
             return
         px, py = screen.to_pixels(self.x, self.y)
-        wanted = min(self.size * screen.scale, MAX_TEXT_POINTS)
-        size = round(wanted * 2) / 2   # snap to half points
-        if size != self.last_size:
-            self.label.font_size = size
+        size = self.pick_size(screen.scale)
+
+        if self.label is None or size != self.last_size or self.dirty:
+            self.label = arcade.Text(self.string, 0, 0, self.rgba, size,
+                                     anchor_x=self.anchor_x_value,
+                                     anchor_y=self.anchor_y_value,
+                                     bold=self.bold, font_name=FONT)
             self.last_size = size
-        self.label.position = (px, py)
-        arcade.get_window().default_camera.use()
+            self.dirty = False
+
+        self.label.position = (int(round(px)), int(round(py)))
+        screen.text_camera.use()
         self.label.draw()
         screen.camera.use()
 
@@ -496,7 +577,7 @@ DEFAULTS = {
     "endless_level": 0,
     "endless_enemies": 2,
     "endless_lives": 3,
-    "endless_scores": {},
+    "endless_records": {},
 }
 SETTING_KEYS = ["master_volume", "music_volume", "sfx_volume", "fullscreen", "show_fps"]
 
@@ -504,7 +585,7 @@ SETTING_KEYS = ["master_volume", "music_volume", "sfx_volume", "fullscreen", "sh
 class SaveData:
     def __init__(self):
         self.data = dict(DEFAULTS)
-        self.data["endless_scores"] = {}
+        self.data["endless_records"] = {}
         self.load()
 
     def load(self):
@@ -527,13 +608,21 @@ class SaveData:
         self.data["endless_enemies"] = max(1, min(ENDLESS_MAX_ENEMIES, self.data["endless_enemies"]))
         self.data["endless_lives"] = max(1, min(ENDLESS_MAX_LIVES, self.data["endless_lives"]))
 
-        clean_scores = {}
-        raw_scores = self.data["endless_scores"]
-        for key in raw_scores:
-            value = raw_scores[key]
-            if isinstance(key, str) and type(value) == int and value > 0:
-                clean_scores[key] = value
-        self.data["endless_scores"] = clean_scores
+        # Each record is {"time": seconds survived, "kills": most kills}.
+        clean_records = {}
+        raw_records = self.data["endless_records"]
+        for key in raw_records:
+            value = raw_records[key]
+            if not isinstance(key, str) or not isinstance(value, dict):
+                continue
+            best_time = value.get("time", 0)
+            best_kills = value.get("kills", 0)
+            if not isinstance(best_time, (int, float)) or not isinstance(best_kills, int):
+                continue
+            if best_time < 0 or best_kills < 0:
+                continue
+            clean_records[key] = {"time": float(best_time), "kills": best_kills}
+        self.data["endless_records"] = clean_records
 
     def save(self):
         try:
@@ -548,6 +637,13 @@ class SaveData:
     def set(self, key, value):
         self.data[key] = value
         self.save()
+
+    def endless_record(self, key):
+        # The best time and most kills for one endless setup (zeros if never played).
+        record = self.data["endless_records"].get(key)
+        if record is None:
+            return {"time": 0.0, "kills": 0}
+        return record
 
     def reset_settings(self):
         for key in SETTING_KEYS:
@@ -791,6 +887,12 @@ class Arena:
         self.build_grid()
         self.build_slab()
         self.build_brackets()
+
+    def add_obstacles(self, specs):
+        # Adds obstacles after the arena was built (the campaign reveal uses this).
+        for spec in specs:
+            self.obstacles.append(Obstacle(spec))
+        self.nav_ready = False   # enemies need a fresh map of what is walkable
 
     def clip_segment(self, p0, p1):
         # Trims a line so only the part inside the arena is left.
@@ -1097,6 +1199,71 @@ class Pulse:
                                    with_alpha(self.color, alpha), 3)
         arcade.draw_circle_outline(self.x, self.y, radius * 0.7,
                                    with_alpha(self.color, alpha * 0.4), 2)
+
+
+class ObstacleTrace:
+    # The outline of an obstacle drawing itself in, with a bright head that
+    # runs around the edge. It is only light: the real obstacle is added when
+    # the trace is finished. Draw it between glow_on and glow_off.
+    def __init__(self, spec, duration):
+        self.spec = spec
+        self.duration = duration
+        self.age = 0.0
+
+    def update(self, delta_time):
+        self.age += delta_time
+
+    def is_done(self):
+        return self.age >= self.duration
+
+    def draw_piece(self, x0, y0, x1, y1):
+        arcade.draw_line(x0, y0, x1, y1, with_alpha(CONDUIT_COLOR, 60), 12)
+        arcade.draw_line(x0, y0, x1, y1, WHITE_HOT, 2)
+
+    def draw(self):
+        # The last stretch holds the full outline so there is no gap before the flash.
+        t = min(1.0, self.age / (self.duration * 0.85))
+        spec = self.spec
+        x = spec[1]
+        y = spec[2]
+        head = (x, y)
+
+        if spec[0] == "rect":
+            left = x - spec[3] / 2
+            right = x + spec[3] / 2
+            bottom = y - spec[4] / 2
+            top = y + spec[4] / 2
+            arcade.draw_lrbt_rectangle_filled(left, right, bottom, top,
+                                              with_alpha(CONDUIT_COLOR, 40 * t))
+            corners = [(left, bottom), (right, bottom), (right, top), (left, top), (left, bottom)]
+            remaining = t * 2 * (spec[3] + spec[4])
+            head = corners[0]
+            for i in range(4):
+                if remaining <= 0:
+                    break
+                a = corners[i]
+                b = corners[i + 1]
+                length = math.hypot(b[0] - a[0], b[1] - a[1])
+                portion = min(1.0, remaining / length)
+                end = (a[0] + (b[0] - a[0]) * portion, a[1] + (b[1] - a[1]) * portion)
+                self.draw_piece(a[0], a[1], end[0], end[1])
+                head = end
+                remaining -= length
+        else:
+            radius = spec[3]
+            sweep = 360 * t
+            arcade.draw_circle_filled(x, y, radius, with_alpha(CONDUIT_COLOR, 40 * t))
+            if sweep > 1:
+                arcade.draw_arc_outline(x, y, radius * 2, radius * 2,
+                                        with_alpha(CONDUIT_COLOR, 60), 0, sweep, 12)
+                arcade.draw_arc_outline(x, y, radius * 2, radius * 2,
+                                        WHITE_HOT, 0, sweep, 2)
+            angle = math.radians(sweep)
+            head = (x + radius * math.cos(angle), y + radius * math.sin(angle))
+
+        if t < 1.0:
+            arcade.draw_circle_filled(head[0], head[1], 9, with_alpha(WHITE_HOT, 70))
+            arcade.draw_circle_filled(head[0], head[1], 3.5, WHITE_HOT)
 
 
 class WallFlash:
@@ -1678,12 +1845,14 @@ class DemoOwner:
 class Screen:
     # Keeps the 1000x680 logical layout and scales it to whatever the window is.
     # Menus and the HUD use the fixed camera. The game world uses a second
-    # camera that can be moved around (see FollowCamera).
+    # camera that can be moved around (see FollowCamera). Text uses a third
+    # camera that works in real window pixels (see CrispText).
     active = None   # the screen currently being drawn
 
     def __init__(self):
         self.camera = arcade.Camera2D()
         self.world_camera = arcade.Camera2D()
+        self.text_camera = arcade.Camera2D()
         self.scale = 1.0
         self.pixel_width = WIDTH
         self.pixel_height = HEIGHT
@@ -1696,6 +1865,13 @@ class Screen:
         camera.projection = arcade.LRBT(-self.view_width / 2, self.view_width / 2,
                                         -self.view_height / 2, self.view_height / 2)
 
+    def configure_text(self):
+        # One unit is one real pixel, with (0, 0) at the bottom left.
+        self.text_camera.match_window(viewport=True, projection=False, position=False)
+        self.text_camera.projection = arcade.LRBT(-self.pixel_width / 2, self.pixel_width / 2,
+                                                  -self.pixel_height / 2, self.pixel_height / 2)
+        self.text_camera.position = (self.pixel_width / 2, self.pixel_height / 2)
+
     def update_size(self, width, height):
         self.pixel_width = max(1, width)
         self.pixel_height = max(1, height)
@@ -1704,6 +1880,7 @@ class Screen:
         self.view_height = self.pixel_height / self.scale
         self.configure(self.camera)
         self.configure(self.world_camera)
+        self.configure_text()
         self.camera.position = (WIDTH / 2, HEIGHT / 2)
 
     def use(self):
@@ -2432,10 +2609,10 @@ class LevelSelectView(BaseView):
 MODES = [
     {"id": "gladiator", "name": "GLADIATOR MODE", "blurb": "PROVE YOURSELF",
      "ready": True, "status": str(len(LEVELS)) + " ARENAS"},
-    {"id": "endless", "name": "ENDLESS", "blurb": "CHASE A HIGH SCORE",
+    {"id": "endless", "name": "ENDLESS", "blurb": "OUTLAST THE GRID",
      "ready": True, "status": "SURVIVE"},
     {"id": "campaign", "name": "CAMPAIGN", "blurb": "REWRITE THE LEGACY",
-     "ready": False, "status": "COMING SOON"},
+     "ready": True, "status": "1 MISSION"},
     {"id": "custom", "name": "CUSTOM", "blurb": "BUILD YOUR OWN BATTLES",
      "ready": False, "status": "COMING SOON"},
 ]
@@ -2481,6 +2658,8 @@ class ModeSelectView(BaseView):
             self.window.show_view(LevelSelectView(self))
         elif mode["id"] == "endless":
             self.window.show_view(EndlessSetupView(self))
+        elif mode["id"] == "campaign":
+            self.window.show_view(GameView(0, None, 0))
         else:
             self.window.show_view(PlaceholderView(self, mode["name"], mode["blurb"]))
 
@@ -2647,11 +2826,11 @@ class EndlessSetupView(BaseView):
         self.selected = 3   # START RUN, so ENTER goes straight into a run
 
         self.title = make_text("ENDLESS MODE", CENTER_X, 582, WHITE_HOT, 30, bold=True)
-        self.subtitle = make_text("SURVIVE FOR A HIGH SCORE", CENTER_X, 548, TEXT_DIM, 12)
+        self.subtitle = make_text("SURVIVE AS LONG AS YOU CAN", CENTER_X, 548, TEXT_DIM, 12)
         self.hint = make_text("UP / DOWN SELECT     LEFT / RIGHT CHANGE     ENTER START     ESC BACK",
                               CENTER_X, 22, (90, 170, 200), 11)
-        self.best_label = make_text("BEST SCORE FOR THIS SETUP", CENTER_X, 210, TEXT_DIM, 12)
-        self.best_value = make_text("---", CENTER_X, 182, WHITE_HOT, 26, bold=True)
+        self.best_label = make_text("BEST FOR THIS SETUP", CENTER_X, 210, TEXT_DIM, 12)
+        self.best_value = make_text("---", CENTER_X, 182, WHITE_HOT, 20, bold=True)
 
         self.label_texts = []
         self.value_texts = []
@@ -2794,9 +2973,10 @@ class EndlessSetupView(BaseView):
             self.draw_row(i)
 
         key = endless_key(self.level_index, self.enemies, self.lives)
-        best = self.window.save.data["endless_scores"].get(key, 0)
-        if best > 0:
-            self.best_value.text = str(best)
+        record = self.window.save.endless_record(key)
+        if record["time"] > 0 or record["kills"] > 0:
+            self.best_value.text = (format_time(record["time"]) + " SURVIVED     " +
+                                    str(record["kills"]) + " KILLS")
         else:
             self.best_value.text = "---"
         self.best_label.draw()
@@ -3056,30 +3236,56 @@ class OptionsView(BaseView):
 class GameView(BaseView):
     # endless is None for a normal Gladiator level, or a dict like
     # {"enemies": 3, "lives": 5} for an endless run on that arena.
-    def __init__(self, level_index, endless=None):
+    # campaign is None, or an index into CAMPAIGN_LEVELS.
+    #
+    # phase only matters in the campaign:
+    #   corridor    walk to the exit gate at the end of the hallway
+    #   fading_out  screen goes black
+    #   fading_in   the circular arena fades in
+    #   speech      the announcer talks, nobody can move
+    #   reveal      obstacles trace their outlines, then flash solid
+    #   fight       normal play
+    def __init__(self, level_index, endless=None, campaign=None):
         super().__init__()
         self.level_index = level_index
         self.endless = endless
+        self.campaign = campaign
         self.is_endless = endless is not None
-        self.level = dict(LEVELS[level_index])
-        self.arena = make_arena(self.level)
+        self.is_campaign = campaign is not None
+
+        if self.is_campaign:
+            self.level = dict(CAMPAIGN_LEVELS[campaign])
+            corridor = self.level["corridor"]
+            self.arena = Arena("rect", [], corridor["bounds"])
+            start = corridor["player_start"]
+            self.phase = "corridor"
+        else:
+            self.level = dict(LEVELS[level_index])
+            self.arena = make_arena(self.level)
+            start = self.level["player_start"]
+            self.phase = "fight"
         self.backdrop = ArenaBackdrop(self.arena)
 
         self.lives_total = LIVES
         self.endless_key = ""
-        self.best_score = 0
-        self.new_best = False
+        self.best_time = 0.0
+        self.best_kills = 0
+        self.new_best_time = False
+        self.new_best_kills = False
+        self.run_time = 0.0
 
         save = self.window.save
         if self.is_endless:
             self.lives_total = endless["lives"]
             self.endless_key = endless_key(level_index, endless["enemies"], endless["lives"])
-            self.best_score = save.data["endless_scores"].get(self.endless_key, 0)
+            record = save.endless_record(self.endless_key)
+            self.best_time = record["time"]
+            self.best_kills = record["kills"]
             self.level["enemies"] = endless["enemies"]
             self.level["enemy_starts"] = self.build_endless_spawns(endless["enemies"])
             self.level["kills"] = 0
             self.level["speed"] = max(self.level["speed"], 100)
-        else:
+        elif not self.is_campaign:
             save.data["has_played"] = True
             save.data["current_level"] = level_index
             save.save()
@@ -3089,17 +3295,12 @@ class GameView(BaseView):
         self.mouse_x = WIDTH / 2   # mouse position on the screen layout (not the world)
         self.mouse_y = HEIGHT / 2
 
-        start = self.level["player_start"]
         self.player = Fighter(start[0], start[1], PLAYER_COLOR, "player")
         self.enemies = []
         self.brains = []
-        for i in range(self.level["enemies"]):
-            spot = self.level["enemy_starts"][i]
-            enemy = Fighter(spot[0], spot[1], ENEMY_COLORS[i % len(ENEMY_COLORS)], "enemy")
-            enemy.facing = math.pi
-            self.enemies.append(enemy)
-            self.brains.append(EnemyBrain(enemy, self.level, self.arena, min(i * 0.8, 3.0)))
-        self.fighters = [self.player] + self.enemies
+        self.fighters = [self.player]
+        if not self.is_campaign:
+            self.spawn_enemies()
 
         self.camera = FollowCamera()
         self.camera_ready = False
@@ -3113,27 +3314,55 @@ class GameView(BaseView):
         self.overlay = None
         self.overlay_title = None
         self.overlay_sub = None
+        self.overlay_note = None
+
+        # campaign cutscene state
+        self.fade = 0.0           # 0 is clear, 1 is fully black
+        self.speech_index = 0
+        self.speech_time = 0.0
+        self.reveal_time = 0.0
 
         font_hint = (90, 170, 200)
         if self.is_endless:
             title = "ENDLESS   " + level_label(level_index) + " " + self.level["name"]
-            kills_text = "SCORE"
+        elif self.is_campaign:
+            title = "CAMPAIGN   " + level_label(campaign) + " " + self.level["name"]
         else:
             title = "LEVEL " + level_label(level_index) + "   " + self.level["name"]
-            kills_text = "KILLS"
         self.level_text = make_text(title, CENTER_X, HEIGHT - 40, CONDUIT_COLOR, 15, bold=True)
-        self.kills_label = make_text(kills_text, 40, HEIGHT - 24, font_hint, 11, anchor_x="left")
+        self.kills_label = make_text("KILLS", 40, HEIGHT - 24, font_hint, 11, anchor_x="left")
         self.lives_label = make_text("LIVES", WIDTH - 40, HEIGHT - 24, font_hint, 11, anchor_x="right")
-        self.score_text = make_text("0", 40, HEIGHT - 50, WHITE_HOT, 20, anchor_x="left", bold=True)
-        self.best_text = make_text("", 40, HEIGHT - 76, TEXT_DIM, 11, anchor_x="left")
+        self.kills_value = make_text("0", 40, HEIGHT - 50, WHITE_HOT, 20, anchor_x="left", bold=True)
+        self.best_kills_text = make_text("", 40, HEIGHT - 76, TEXT_DIM, 11, anchor_x="left")
+        self.time_value = make_text("0:00", CENTER_X, HEIGHT - 68, WHITE_HOT, 20, bold=True)
+        self.best_time_text = make_text("", CENTER_X, HEIGHT - 92, TEXT_DIM, 11)
         self.hint = make_text("WASD MOVE      CLICK THROW      SPACE RECALL      ESC PAUSE",
                               CENTER_X, 22, font_hint, 11)
+        self.announce_label = make_text("ANNOUNCER", 140, HEIGHT - 74, PLAYER_COLOR, 10,
+                                        anchor_x="left", bold=True)
+        self.announce_text = make_text("", 140, HEIGHT - 106, WHITE_HOT, 15, anchor_x="left")
 
     def view_shown(self):
         self.keys_down = set()
         if not self.camera_ready:
             self.camera.snap(self.player.x, self.player.y, self.arena, self.screen)
             self.camera_ready = True
+
+    # ------------------------------------------------------------ setup helpers
+
+    def spawn_enemies(self):
+        self.enemies = []
+        self.brains = []
+        for i in range(self.level["enemies"]):
+            spot = self.level["enemy_starts"][i]
+            enemy = Fighter(spot[0], spot[1], ENEMY_COLORS[i % len(ENEMY_COLORS)], "enemy")
+            enemy.facing = math.pi
+            self.enemies.append(enemy)
+            self.brains.append(EnemyBrain(enemy, self.level, self.arena, min(i * 0.8, 3.0)))
+        self.fighters = [self.player] + self.enemies
+
+    def controls_locked(self):
+        return self.is_campaign and self.phase in CUTSCENE_PHASES
 
     # ------------------------------------------------------------ endless helpers
 
@@ -3158,9 +3387,6 @@ class GameView(BaseView):
             spawns.append(base[len(spawns) % len(base)])
         return spawns
 
-    def score(self):
-        return self.kills * SCORE_PER_KILL
-
     def apply_ramp(self):
         # Enemies get faster, throw sooner, and aim better as the kills pile up.
         ramp = min(1.0, self.kills / ENDLESS_RAMP_KILLS)
@@ -3168,22 +3394,110 @@ class GameView(BaseView):
         self.level["interval"] = self.base_level["interval"] * (1.0 - 0.4 * ramp)
         self.level["error"] = self.base_level["error"] * (1.0 - 0.5 * ramp)
 
-    def record_endless_score(self):
-        # Saves the score if it beats the old best. Returns True for a new best.
+    def record_endless_run(self):
+        # Saves the time and kills if either beats the old record.
+        # Returns (new_best_time, new_best_kills).
         if not self.is_endless:
-            return False
-        scores = self.window.save.data["endless_scores"]
-        old = scores.get(self.endless_key, 0)
-        if self.score() > old:
-            scores[self.endless_key] = self.score()
-            self.window.save.save()
-            return True
-        return False
+            return (False, False)
+        save = self.window.save
+        old = save.endless_record(self.endless_key)
+        new_time = self.run_time > old["time"]
+        new_kills = self.kills > old["kills"]
+        if new_time or new_kills:
+            save.data["endless_records"][self.endless_key] = {
+                "time": round(max(old["time"], self.run_time), 2),
+                "kills": max(old["kills"], self.kills),
+            }
+            save.save()
+        return (new_time, new_kills)
+
+    # ------------------------------------------------------------ campaign cutscene
+
+    def check_corridor_exit(self):
+        gate_x = self.arena.bounds[2] - CORRIDOR_EXIT_MARGIN
+        if self.player.alive and self.player.x >= gate_x:
+            self.phase = "fading_out"
+
+    def enter_arena(self):
+        # Swap the corridor for the circular arena. The screen is black right now.
+        self.arena = Arena(self.level["arena"], [], level_bounds(self.level),
+                           level_radius(self.level))
+        self.backdrop = ArenaBackdrop(self.arena)
+        start = self.level["player_start"]
+        self.player.start_x = start[0]
+        self.player.start_y = start[1]
+        self.player.respawn()
+        self.player.facing = 0.0
+        self.spawn_enemies()
+        self.camera.snap(self.player.x, self.player.y, self.arena, self.screen)
+        self.phase = "fading_in"
+
+    def start_speech(self):
+        self.phase = "speech"
+        self.speech_index = 0
+        self.speech_time = -SPEECH_LEAD
+        self.announce_text.text = ""
+
+    def update_speech(self, delta_time):
+        lines = self.level["speech"]
+        line = lines[self.speech_index]
+        self.speech_time += delta_time
+
+        chars = int(self.speech_time * SPEECH_CHARS_PER_SECOND)
+        chars = max(0, min(len(line), chars))
+        self.announce_text.text = line[:chars]
+
+        line_time = len(line) / SPEECH_CHARS_PER_SECOND
+        if self.speech_time >= line_time + SPEECH_HOLD:
+            self.speech_index += 1
+            self.speech_time = 0.0
+            if self.speech_index >= len(lines):
+                self.announce_text.text = ""
+                self.start_reveal()
+
+    def start_reveal(self):
+        self.phase = "reveal"
+        self.reveal_time = 0.0
+        for spec in self.level["reveal"]:
+            self.backdrop.effects.append(ObstacleTrace(spec, REVEAL_TIME))
+
+    def finish_reveal(self):
+        # The outlines become real obstacles with a bright flash.
+        self.arena.add_obstacles(self.level["reveal"])
+        for obstacle in self.arena.obstacles:
+            obstacle.flash = 1.0
+            obstacle.flash_color = WHITE_HOT
+            self.backdrop.effects.append(Pulse(obstacle.x, obstacle.y, WHITE_HOT, 70, 0.5))
+        self.phase = "fight"
+
+    def update_cutscene(self, delta_time):
+        # Everyone stands still. Only the camera, effects and fade move.
+        effects = self.backdrop.effects
+        self.player.facing = self.player_aim_angle()
+        self.player.update_trail(delta_time, False)
+        for fighter in self.fighters:
+            fighter.disc.update(delta_time, effects, fighter.facing, self.arena)
+
+        if self.phase == "fading_out":
+            self.fade = min(1.0, self.fade + delta_time / FADE_OUT_TIME)
+            if self.fade >= 1.0:
+                self.enter_arena()
+        elif self.phase == "fading_in":
+            self.fade = max(0.0, self.fade - delta_time / FADE_IN_TIME)
+            if self.fade <= 0.0:
+                self.start_speech()
+        elif self.phase == "speech":
+            self.update_speech(delta_time)
+        elif self.phase == "reveal":
+            self.reveal_time += delta_time
+            if self.reveal_time >= REVEAL_TIME:
+                self.finish_reveal()
 
     # ------------------------------------------------------------ overlays
 
     def open_overlay(self, mode):
         self.mode = mode
+        note = ""
         if mode == "paused":
             entries = [("RESUME", self.resume), ("RESTART", self.restart),
                        ("OPTIONS", self.open_options), ("MAIN MENU", self.main_menu)]
@@ -3192,24 +3506,32 @@ class GameView(BaseView):
             sub = ""
         elif mode == "won":
             entries = []
-            if self.level_index < len(LEVELS) - 1:
+            title = "LEVEL COMPLETE"
+            if self.is_campaign:
+                title = "MISSION COMPLETE"
+            elif self.level_index < len(LEVELS) - 1:
                 entries.append(("NEXT LEVEL", self.next_level))
             entries.append(("REPLAY", self.restart))
             entries.append(("MAIN MENU", self.main_menu))
-            title = "LEVEL COMPLETE"
             title_color = PLAYER_COLOR
             sub = "DEREZZED " + str(self.kills) + "     LIVES LOST " + str(self.deaths)
-            if self.level_index == len(LEVELS) - 1:
+            if not self.is_campaign and self.level_index == len(LEVELS) - 1:
                 sub = "ALL LEVELS CLEARED     " + sub
         elif self.is_endless:
             entries = [("RETRY", self.restart), ("CHANGE SETUP", self.endless_setup),
                        ("MAIN MENU", self.main_menu)]
             title = "RUN OVER"
             title_color = ENEMY_COLOR
-            best = self.window.save.data["endless_scores"].get(self.endless_key, 0)
-            sub = "SCORE " + str(self.score()) + "     BEST " + str(best)
-            if self.new_best:
-                sub = "NEW BEST     " + sub
+            sub = "SURVIVED " + format_time(self.run_time) + "     KILLS " + str(self.kills)
+            if self.new_best_time and self.new_best_kills:
+                sub = "NEW BEST TIME AND KILLS     " + sub
+            elif self.new_best_time:
+                sub = "NEW BEST TIME     " + sub
+            elif self.new_best_kills:
+                sub = "NEW MOST KILLS     " + sub
+            best = self.window.save.endless_record(self.endless_key)
+            note = ("BEST TIME " + format_time(best["time"]) +
+                    "     MOST KILLS " + str(best["kills"]))
         else:
             entries = [("RETRY", self.restart), ("MAIN MENU", self.main_menu)]
             title = "DEREZZED"
@@ -3218,14 +3540,15 @@ class GameView(BaseView):
         self.overlay = MenuList(entries, CENTER_X, 330)
         self.overlay_title = make_text(title, CENTER_X, 470, title_color, 44, bold=True)
         self.overlay_sub = make_text(sub, CENTER_X, 425, TEXT_DIM, 14)
+        self.overlay_note = make_text(note, CENTER_X, 396, TEXT_DIM, 12)
 
     def resume(self):
         self.mode = "playing"
         self.keys_down = set()
 
     def restart(self):
-        self.record_endless_score()
-        self.window.show_view(GameView(self.level_index, self.endless))
+        self.record_endless_run()
+        self.window.show_view(GameView(self.level_index, self.endless, self.campaign))
 
     def next_level(self):
         self.window.show_view(GameView(self.level_index + 1))
@@ -3234,11 +3557,11 @@ class GameView(BaseView):
         self.window.show_view(OptionsView(self))
 
     def endless_setup(self):
-        self.record_endless_score()
+        self.record_endless_run()
         self.window.show_view(EndlessSetupView(ModeSelectView(MenuView())))
 
     def main_menu(self):
-        self.record_endless_score()
+        self.record_endless_run()
         self.window.show_view(MenuView())
 
     def finish(self, result):
@@ -3246,7 +3569,9 @@ class GameView(BaseView):
         self.result = result
         self.result_timer = 1.1
         if self.is_endless:
-            self.new_best = self.record_endless_score()
+            self.new_best_time, self.new_best_kills = self.record_endless_run()
+            return
+        if self.is_campaign:
             return
         if result == "won":
             save = self.window.save
@@ -3263,7 +3588,7 @@ class GameView(BaseView):
             if key == arcade.key.ESCAPE and not self.finished:
                 self.keys_down = set()
                 self.open_overlay("paused")
-            elif key == arcade.key.SPACE:
+            elif key == arcade.key.SPACE and not self.controls_locked():
                 self.player.disc.recall()
         else:
             if key == arcade.key.ESCAPE and self.mode == "paused":
@@ -3286,7 +3611,7 @@ class GameView(BaseView):
             return
         if self.mode != "playing":
             self.overlay.mouse_pressed(lx, ly)
-        elif not self.finished:
+        elif not self.finished and not self.controls_locked():
             if self.player.alive and self.player.disc.state == HELD:
                 self.player.disc.throw(self.player_aim_angle())
 
@@ -3325,7 +3650,14 @@ class GameView(BaseView):
         if self.mode != "playing":
             return
 
+        if self.controls_locked():
+            self.update_cutscene(delta_time)
+            return
+
         effects = self.backdrop.effects
+
+        if self.is_endless:
+            self.run_time += delta_time
 
         self.player.facing = self.player_aim_angle()
         self.update_player_movement(delta_time)
@@ -3339,7 +3671,15 @@ class GameView(BaseView):
         self.check_disc_hits()
         self.update_respawns(delta_time)
 
+        if self.phase == "corridor":
+            self.check_corridor_exit()
+
     def update_camera(self, delta_time):
+        if self.is_campaign and self.phase in ("speech", "reveal"):
+            # Look at the middle of the arena while the show happens.
+            self.camera.update(delta_time, self.arena.cx, self.arena.cy,
+                               self.arena, self.screen)
+            return
         # Follow the player, leaning a little toward the mouse.
         look_x = (self.mouse_x - CENTER_X) * LOOK_AHEAD
         look_y = (self.mouse_y - CENTER_Y) * LOOK_AHEAD
@@ -3436,6 +3776,9 @@ class GameView(BaseView):
         b.draw_conduit()
         b.draw_obstacles(view)
 
+        if self.is_campaign and self.phase == "corridor":
+            self.draw_exit_gate()
+
         for fighter in self.fighters:
             fighter.draw()
         for fighter in self.fighters:
@@ -3446,6 +3789,11 @@ class GameView(BaseView):
         # The HUD and overlays stay fixed on the screen.
         self.screen.use()
         self.draw_hud()
+        self.draw_announcer()
+
+        if self.fade > 0:
+            arcade.draw_lrbt_rectangle_filled(-4000, WIDTH + 4000, -4000, HEIGHT + 4000,
+                                              (0, 0, 0, int(255 * self.fade)))
 
         if self.mode != "playing":
             self.draw_overlay()
@@ -3460,8 +3808,29 @@ class GameView(BaseView):
                 draw_light_pool(disc.x, disc.y, 130, fighter.color,
                                 1.0 + disc.flash * 1.5)
 
+    def draw_exit_gate(self):
+        # A glowing line across the end of the corridor with chevrons pointing at it.
+        bounds = self.arena.bounds
+        gate_x = bounds[2] - CORRIDOR_EXIT_MARGIN
+        mid_y = (bounds[1] + bounds[3]) / 2
+        pulse = 0.6 + 0.4 * math.sin(self.clock * 4)
+
+        glow_on()
+        arcade.draw_line(gate_x, bounds[1], gate_x, bounds[3],
+                         with_alpha(PLAYER_COLOR, 40 * pulse), 18)
+        arcade.draw_line(gate_x, bounds[1], gate_x, bounds[3],
+                         with_alpha(PLAYER_COLOR, 120 * pulse), 7)
+        for i in range(3):
+            chevron_x = gate_x - 44 - i * 30
+            wave = 0.5 + 0.5 * math.sin(self.clock * 6 - i * 1.1)
+            color = with_alpha(PLAYER_COLOR, 60 + 170 * wave)
+            arcade.draw_line(chevron_x - 10, mid_y + 26, chevron_x + 8, mid_y, color, 4)
+            arcade.draw_line(chevron_x - 10, mid_y - 26, chevron_x + 8, mid_y, color, 4)
+        glow_off()
+        arcade.draw_line(gate_x, bounds[1], gate_x, bounds[3], WHITE_HOT, 2)
+
     def draw_aim_line(self):
-        if self.mode != "playing" or self.finished:
+        if self.mode != "playing" or self.finished or self.controls_locked():
             return
         if not self.player.alive or self.player.disc.state != HELD:
             return
@@ -3487,22 +3856,54 @@ class GameView(BaseView):
         self.kills_label.draw()
         self.lives_label.draw()
         if self.is_endless:
-            best = max(self.best_score, self.score())
-            self.score_text.text = str(self.score())
-            self.best_text.text = "BEST " + str(best)
-            self.score_text.draw()
-            self.best_text.draw()
+            self.kills_value.text = str(self.kills)
+            self.best_kills_text.text = "BEST " + str(max(self.best_kills, self.kills))
+            self.time_value.text = format_time(self.run_time)
+            self.best_time_text.text = "BEST " + format_time(max(self.best_time, self.run_time))
+            self.kills_value.draw()
+            self.best_kills_text.draw()
+            self.time_value.draw()
+            self.best_time_text.draw()
         else:
             self.draw_pips(46, HEIGHT - 46, self.level["kills"], self.kills, 1)
         self.draw_pips(WIDTH - 46, HEIGHT - 46, self.lives_total,
                        self.lives_total - self.deaths, -1)
         self.hint.draw()
 
+    def draw_announcer(self):
+        # The text box at the top of the screen during the campaign intro.
+        if not self.is_campaign or self.phase != "speech":
+            return
+        left = 120
+        right = WIDTH - 120
+        bottom = HEIGHT - 132
+        top = HEIGHT - 58
+
+        arcade.draw_lrbt_rectangle_filled(left, right, bottom, top, (6, 9, 16, 240))
+        glow_on()
+        arcade.draw_lrbt_rectangle_filled(left, right, bottom, top, with_alpha(PLAYER_COLOR, 14))
+        arcade.draw_lrbt_rectangle_outline(left, right, bottom, top,
+                                           with_alpha(PLAYER_COLOR, 45), 12)
+        arcade.draw_lrbt_rectangle_outline(left, right, bottom, top,
+                                           with_alpha(PLAYER_COLOR, 90), 5)
+        glow_off()
+        arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, CONDUIT_COLOR, 2)
+
+        tick = (90, 190, 240, 255)
+        arcade.draw_line(left + 8, top - 8, left + 24, top - 8, tick, 2)
+        arcade.draw_line(left + 8, top - 8, left + 8, top - 24, tick, 2)
+        arcade.draw_line(right - 8, bottom + 8, right - 24, bottom + 8, tick, 2)
+        arcade.draw_line(right - 8, bottom + 8, right - 8, bottom + 24, tick, 2)
+
+        self.announce_label.draw()
+        self.announce_text.draw()
+
     def draw_overlay(self):
         arcade.draw_lrbt_rectangle_filled(-4000, WIDTH + 4000, -4000, HEIGHT + 4000,
                                           (0, 0, 0, 165))
         self.overlay_title.draw()
         self.overlay_sub.draw()
+        self.overlay_note.draw()
         self.overlay.draw(self.clock)
 
 
