@@ -5,15 +5,29 @@
   "fullscreen": false,
   "show_fps": false,
   "has_played": true,
-  "current_level": 11,
+  "current_level": 0,
   "unlocked": 16,
   "endless_level": 15,
   "endless_enemies": 6,
   "endless_lives": 5,
   "endless_records": {
     "15:6:5": {
-      "time": 80.31,
-      "kills": 31
+      "time": 135.74,
+      "kills": 64
+    },
+    "13:6:5": {
+      "time": 48.08,
+      "kills": 25
     }
-  }
+  },
+  "campaign_unlocked": 2,
+  "campaign_rewards": [
+    1
+  ],
+  "upgrades_owned": [
+    "cluster"
+  ],
+  "upgrades_equipped": [
+    "cluster"
+  ]
 }

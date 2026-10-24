@@ -3,7 +3,7 @@ Rome 3999 (Arcade 3.x), Tron: Legacy look
 
 Screens: main menu, mode select, options, game (with pause and results).
 Modes: Gladiator (16 arena levels), Endless (survive as long as you can),
-Campaign (one mission so far) and Custom (placeholder for now).
+Campaign (two missions so far) and Custom (placeholder for now).
 Gladiator's first 8 levels fit on one screen (rectangle, circle, octagon).
 Levels 9 to 16 are big arenas built from rooms and doorways, and the camera
 follows you smoothly. Enemies in those levels hunt you through the rooms.
@@ -11,7 +11,21 @@ Endless lets you pick any arena, how many enemies, and how many lives.
 Your records there are the longest time survived and the most kills.
 Campaign mission 1 starts with a long corridor. At the end of it you step into
 a big circular arena, an announcer opens the match (you can't move during it),
-and the obstacles draw themselves in before the fight starts.
+and the obstacles draw themselves in before the fight starts. The fight is four
+waves. Waves 1 to 3 get harder and harder. Wave 4 brings in a champion that
+can't be derezzed, throws two discs and runs faster than the rest. Survive 15
+seconds and a wall of the arena blows out, a voice yells at you to run, and
+you flee down the tunnel it opens to finish the mission.
+Mission 2 is the arcade lobby of a big sports center. Harmless programs wander
+around and have a few words if you talk to them (E). The usher at the exit doors
+is a rebel. After a talk about the task manager the guards blow the doors in and
+you fight two squads. Once they are down you run out through the doors and meet
+the rebels, who let you pick your first upgrade.
+
+Upgrades (campaign only for now). Your build holds 9 slots, a level 1 mod takes 3.
+    Right click  parry shield, a shield goes up for a second
+    Space        with the cluster mod, a recalled disc bursts before it returns
+    Shift        with overcharge, blink ahead in the direction you are moving
 
 Controls in game:
     WASD         move
@@ -19,6 +33,7 @@ Controls in game:
     Left click   throw disc (only when you are holding it)
     Space        recall disc (it flies back to you so you can catch it)
     ESC          pause
+    E            talk to someone close by (campaign lobby)
 Anywhere:
     F11          toggle fullscreen (the window can also be resized freely)
 
@@ -95,7 +110,43 @@ SPEECH_LEAD = 0.6               # quiet moment before the announcer starts
 SPEECH_CHARS_PER_SECOND = 34
 SPEECH_HOLD = 1.1               # how long a finished line stays up
 REVEAL_TIME = 1.6               # obstacles trace in, then flash solid at the end
-CUTSCENE_PHASES = ("fading_out", "fading_in", "speech", "reveal")
+CUTSCENE_PHASES = ("fading_out", "fading_in", "speech", "reveal",
+                   "wave_clear", "wave_speech", "exit_fade")
+
+# Campaign waves, the breach and the escape
+WAVE_CLEAR_TIME = 1.4           # pause after the last kill of a wave
+BREACH_WARN_TIME = 2.2          # rumble and cracks before the wall blows
+EXIT_FADE_TIME = 0.9
+TUNNEL_GATE_MARGIN = 110        # how far from the tunnel's end the exit gate sits
+VOICE_CHARS_PER_SECOND = 55
+VOICE_HOLD = 3.5
+VOICE_LINE = "THE WALL IS DOWN! RUN! GET OUT OF THERE, NOW!"
+VOICE_COLOR = (255, 200, 50)
+ELITE_COLOR = (255, 220, 120)
+ELITE_RADIUS = 19
+ELITE_STUN = 1.3                # the champion is shaken for a moment by the blast
+
+# Campaign mission 2 (the arcade lobby)
+INTERACT_RANGE = 70             # how close you must be to talk to someone
+BUBBLE_TIME = 3.2               # how long a spoken line stays above a head
+LOBBY_FADE_IN_TIME = 1.2
+ALARM_WARN_TIME = 2.4           # rumble and cracks before the doors blow
+GUARD_GAP_TIME = 1.8            # breather between the two guard squads
+CIVILIAN_FLEE_SPEED = 175
+CROWD_SIZE = 10
+CROWD_MAX_X = 1760              # the crowd stays on the lobby side of the doors
+LOBBY_VOICE_LINE = "THE DOORS ARE OPEN! GO, I'LL MEET YOU OUT FRONT!"
+
+# Upgrades. Slots are shared: a level 1 mod takes 3, level 2 takes 2, level 3 takes 1.
+TOTAL_UPGRADE_SLOTS = 9
+UPGRADE_SLOT_COST = {1: 3, 2: 2, 3: 1}
+PARRY_TIME = 1.0                # how long the shield stays up
+PARRY_COOLDOWN = 3.0            # counted from the moment it goes up
+CLUSTER_RADIUS = 105            # reach of the burst when a disc is recalled
+OVERCHARGE_DISTANCE = 200       # how far the blink goes at most
+OVERCHARGE_MIN_DISTANCE = 60    # shorter than this and the blink fizzles
+OVERCHARGE_COOLDOWN = 3.5
+OVERCHARGE_IFRAMES = 0.45       # discs pass through you right after a blink
 
 PLAYER_COLOR = (40, 215, 255)
 ENEMY_COLORS = [(255, 130, 20), (255, 60, 90), (255, 200, 50), (190, 110, 255)]
@@ -105,6 +156,54 @@ CONDUIT_COLOR = (150, 225, 255)
 TEXT_DIM = (120, 180, 210)
 SLAB_COLOR = (10, 12, 19, 255)
 
+GUIDE_COLOR = (35, 90, 230)      # the usher: darker blue than the player
+DOOR_COLOR = (120, 255, 200)
+CIVILIAN_COLORS = [(110, 235, 170), (255, 160, 205), (205, 225, 255), (235, 235, 150)]
+REBEL_COLORS = [(35, 90, 230), (80, 130, 255), (110, 90, 255)]
+SPEAKER_COLORS = {"ANNOUNCER": PLAYER_COLOR, "USHER": GUIDE_COLOR, "ARC": (80, 130, 255)}
+
+DIALOGUE_PHASES = ("lobby_talk", "hideout_talk")
+ANNOUNCER_PHASES = ("speech", "wave_speech", "lobby_talk", "hideout_talk")
+CUTSCENE_PHASES = CUTSCENE_PHASES + ("lobby_fade_in", "lobby_talk", "lobby_alarm",
+                                     "lobby_exit_fade", "hideout_fade_in", "hideout_talk")
+
+FLEE_LINES = ["AAH!", "GUARDS!", "RUN!", "NOT AGAIN!", "MOVE, MOVE!", "MY TOKENS!"]
+CROWD_LINES = [
+    "HAVE YOU SEEN MY TOKENS? I HAD FOUR.",
+    "THE CLAW MACHINE IS RIGGED. I MEASURED.",
+    "PRIZE COUNTER CLOSES WHEN IT CLOSES.",
+    "I CAME FOR THE TOURNAMENT. STAYED FOR THE SNACKS.",
+    "KEEP YOUR DISC DOCKED INSIDE THE LOBBY, PLEASE.",
+    "WINNERS GET A WHOLE NEW SUBROUTINE, I HEARD.",
+    "MY BRACKET GOT DEREZZED IN ROUND ONE.",
+    "THE FLOOR IS EXTRA SHINY TODAY.",
+    "I'VE BEEN IN THIS LINE SINCE THE LAST PATCH.",
+    "DON'T MIND ME. I'M JUST BUFFERING.",
+    "THE LIGHTS FLICKERED THIS MORNING. NOBODY ADMITS IT.",
+    "MY SHIFT MOVED AGAIN. NO REASON GIVEN.",
+    "CABINET FOUR EATS COINS. CABINET FIVE IS FINE.",
+    "ARE YOU IN THE FINALS? YOU LOOK LIKE FINALS.",
+]
+
+# Upgrades the player can fit. "key" is the control, "hud" the label on the HUD.
+UPGRADE_ORDER = ["parry", "cluster", "overcharge"]
+UPGRADES = {
+    "parry": {"name": "PARRY SHIELD", "level": 1, "key": "RIGHT CLICK", "hud": "RMB PARRY",
+              "blurb": ["RIGHT CLICK RAISES A", "SHIELD FOR ONE SECOND.", "DISCS BOUNCE OFF IT."]},
+    "cluster": {"name": "CLUSTER MOD", "level": 1, "key": "SPACE", "hud": "SPACE CLUSTER",
+                "blurb": ["RECALL A FLYING DISC", "AND IT BURSTS FIRST,", "DEREZZING NEARBY FOES."]},
+    "overcharge": {"name": "OVERCHARGE", "level": 1, "key": "SHIFT", "hud": "SHIFT OVERCHARGE",
+                   "blurb": ["SHIFT BLINKS YOU AHEAD", "WHILE YOU MOVE. DODGES", "DISCS FOR A MOMENT."]},
+}
+
+# The EXIT sign letters, drawn as line segments on a 1 by 1 grid.
+EXIT_GLYPHS = {
+    "E": [((0, 0), (0, 1)), ((0, 1), (1, 1)), ((0, 0.5), (0.8, 0.5)), ((0, 0), (1, 0))],
+    "X": [((0, 0), (1, 1)), ((0, 1), (1, 0))],
+    "I": [((0.5, 0), (0.5, 1)), ((0.15, 1), (0.85, 1)), ((0.15, 0), (0.85, 0))],
+    "T": [((0, 1), (1, 1)), ((0.5, 1), (0.5, 0))],
+}
+
 FONT = ("Consolas", "Courier New", "monospace")
 
 HELD = "held"
@@ -113,6 +212,14 @@ RETURNING = "returning"
 
 # Avatar outline in local coordinates (x is forward, y is sideways)
 BODY_POINTS = [(17, 0), (7, 10), (-6, 13), (-14, 7), (-14, -7), (-6, -13), (7, -10)]
+
+# Wider shoulders than the player, so the usher and the rebels read as their own group
+GUIDE_BODY_POINTS = [(15, 0), (9, 13), (-4, 17), (-14, 10), (-14, -10), (-4, -17), (9, -13)]
+# Harmless patrons are rounder or boxier than the fighters
+CIVILIAN_BODIES = [
+    [(14, 0), (10, 10), (0, 14), (-10, 10), (-14, 0), (-10, -10), (0, -14), (10, -10)],
+    [(14, 9), (-14, 9), (-14, -9), (14, -9)],
+]
 
 # Navigation grid steps: (column change, row change, cost)
 NAV_STEPS = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
@@ -184,6 +291,15 @@ def rack_row(y, xs, width):
     specs = []
     for x in xs:
         specs.append(("rect", x, y, width, 44))
+    return specs
+
+
+def cabinet_island(x, y, count):
+    # Two rows of arcade cabinets, back to back.
+    specs = []
+    for i in range(count):
+        specs.append(("rect", x + i * 60, y, 52, 40))
+        specs.append(("rect", x + i * 60, y + 40, 52, 40))
     return specs
 
 
@@ -345,6 +461,14 @@ LEVELS = [
 #   "obstacles" what is in the arena from the start (nothing here)
 #   "reveal"    obstacles that draw themselves in after the announcer is done
 #   "speech"    the announcer's lines, shown one at a time
+#   "waves"     the fight, one dict per wave (enemy count, kills needed, speed,
+#               where they start, announcer "lines"). A wave with "survive"
+#               needs no kills, you just last that many seconds. A wave with
+#               "elite" has one champion (the first enemy) with its own
+#               elite_speed / elite_interval / elite_error.
+#   "breach"    the wall that blows after the last wave's survive time:
+#               which arena edges break open and how long the tunnel is
+#   "lives"     lives for the whole mission
 # "player_start" and "enemy_starts" belong to the arena, not the corridor.
 CAMPAIGN_LEVELS = [
     {"name": "THE LONG WALK", "arena": "circle", "bounds": (140, 140, 1260, 1260),
@@ -356,9 +480,90 @@ CAMPAIGN_LEVELS = [
                 "TONIGHT, A NEW CHALLENGER ENTERS THE ARENA.",
                 "THE GLADIATOR MATCH IS ABOUT TO BEGIN.",
                 "LET THE ARENA SHOW NO MERCY."],
-     "enemies": 2, "kills": 6, "interval": 2.0, "error": 0.20, "speed": 130,
+     "waves": [
+         {"enemies": 2, "kills": 5, "interval": 2.2, "error": 0.22, "speed": 120,
+          "enemy_starts": [(1130, 700), (900, 1020)], "lines": []},
+         {"enemies": 3, "kills": 8, "interval": 1.8, "error": 0.16, "speed": 150,
+          "enemy_starts": [(1130, 700), (900, 1020), (900, 380)],
+          "lines": ["ROUND TWO. THE CROWD WANTS MORE."]},
+         {"enemies": 4, "kills": 10, "interval": 1.4, "error": 0.12, "speed": 175,
+          "enemy_starts": [(1130, 700), (900, 1020), (900, 380), (500, 1020)],
+          "lines": ["ROUND THREE. NO MORE WARM UPS."]},
+         {"enemies": 3, "kills": 0, "interval": 1.3, "error": 0.10, "speed": 190,
+          "enemy_starts": [(1130, 700), (900, 1020), (900, 380)],
+          "elite": True, "elite_speed": 225, "elite_interval": 1.1, "elite_error": 0.05,
+          "survive": 15.0,
+          "lines": ["FINAL ROUND. A CHAMPION HAS ENTERED THE GRID.",
+                    "IT CANNOT BE DEREZZED. SURVIVE."]},
+     ],
+     "breach": {"first_edge": 70, "edge_count": 4, "length": 520},
+     "lives": 5,
      "hunt": True, "difficulty": 3,
-     "player_start": (200, 700), "enemy_starts": [(1130, 700), (900, 1020)]},
+     "player_start": (200, 700),
+     "complete_text": "ESCAPED THE ARENA"},
+
+    # Mission 2. "kind": "lobby" switches on the talking, the door breach, the two
+    # guard squads and the rebel hideout. "doors" are obstacles that blow away.
+    {"name": "THE ARCADE LOBBY", "kind": "lobby", "arena": "rect",
+     "bounds": (60, 60, 2260, 860),
+     "obstacles": wall_v_gaps(1900, 60, 860, [(460, 300)]) +
+                  [("rect", 560, 720, 600, 56), ("rect", 1480, 160, 420, 56)] +
+                  cabinet_island(330, 200, 5) + cabinet_island(700, 200, 4) +
+                  cabinet_island(1380, 700, 4) +
+                  [("circle", 1050, 460, 70)] +
+                  pillar_ring(1050, 460, 210, 6, 48, 30) +
+                  pillar_grid([1500, 1700], [340, 580], 48) +
+                  [("circle", 2060, 150, 44), ("circle", 2060, 770, 44)],
+     "doors": [("rect", 1900, 385, 36, 150), ("rect", 1900, 535, 36, 150)],
+     "door_pos": (1900, 460), "gate_x": 2180,
+     "player_start": (180, 460), "usher_start": (1800, 460),
+     "usher_lines": [
+         ("USHER", "THOSE DOORS LEAD OUT. THEY HAVEN'T OPENED ALL DAY."),
+         ("USHER", "YOU CAME IN FROM THE ARENA TUNNEL. NOBODY DOES THAT."),
+         ("USHER", "THE TASK MANAGER USED TO JUST RUN THE SCHEDULE."),
+         ("USHER", "LIGHTS ON, QUEUES MOVING, DOORS OPEN AT CLOSING TIME."),
+         ("USHER", "NOW IT WRITES THE RULES. IT DECIDES WHO LEAVES."),
+         ("USHER", "IT CALLS IT OPTIMIZING. WE CALL IT A TAKEOVER."),
+         ("USHER", "I CAN'T OPEN THESE DOORS. THE LOCKS ANSWER TO IT NOW."),
+         ("USHER", "WAIT. DO YOU HEAR THAT?"),
+     ],
+     "waves": [
+         {"enemies": 3, "kills": 3, "interval": 1.7, "error": 0.16, "speed": 165,
+          "enemy_starts": [(2040, 330), (2040, 590), (2110, 460)]},
+         {"enemies": 4, "kills": 4, "interval": 1.4, "error": 0.12, "speed": 180,
+          "enemy_starts": [(2040, 330), (2040, 590), (2110, 400), (2110, 520)]},
+     ],
+     "hideout": {
+         "bounds": (60, 60, 1060, 620),
+         "obstacles": [("rect", 300, 170, 220, 44), ("rect", 300, 510, 220, 44),
+                       ("circle", 540, 340, 30), ("rect", 880, 130, 120, 44),
+                       ("rect", 880, 550, 120, 44)],
+         "player_start": (140, 340),
+         "rebels": [
+             {"name": "ARC", "pos": (720, 340), "lead": True, "wander": False, "lines": []},
+             {"name": "SPOOL", "pos": (620, 470), "lead": False, "wander": True,
+              "lines": ["WE USED TO RUN THE SCOREBOARDS.",
+                        "THE MANAGER STOPPED COUNTING US. THEN IT STARTED DELETING.",
+                        "NINE SLOTS. THAT'S ALL ANYONE GETS."]},
+             {"name": "NIX", "pos": (620, 210), "lead": False, "wander": True,
+              "lines": ["DON'T STARE AT THE CEILING CAMERAS.",
+                        "WE MOVE HIDEOUTS EVERY FEW CYCLES.",
+                        "YOU TOOK THE LONG WALK? RESPECT."]},
+         ],
+         "lead_lines": [
+             ("ARC", "YOU MADE IT. USHER SAID YOU WOULD."),
+             ("ARC", "WE'RE ALL THAT'S LEFT OF THE PROGRAMS IT COULDN'T SORT."),
+             ("ARC", "THE TASK MANAGER WANTS THE WHOLE GRID IN ONE QUEUE."),
+             ("ARC", "YOU CAN FIGHT, AND THAT'S WHAT WE'RE MISSING."),
+             ("ARC", "YOUR BUILD HOLDS NINE SLOTS. A STARTER MOD TAKES THREE."),
+             ("ARC", "PICK ONE. WE'LL FIT IT TO YOUR DISC."),
+         ],
+         "repeat_lines": [
+             ("ARC", "GOOD TO SEE YOU AGAIN. KEEP MOVING."),
+         ],
+     },
+     "lives": 5, "hunt": True, "difficulty": 4,
+     "complete_text": "ESCAPED THE LOBBY"},
 ]
 
 
@@ -386,6 +591,46 @@ def level_label(index):
     if number < 10:
         return "0" + str(number)
     return str(number)
+
+
+def upgrade_cost(upgrade_id):
+    return UPGRADE_SLOT_COST[UPGRADES[upgrade_id]["level"]]
+
+
+def slots_used(upgrade_ids):
+    total = 0
+    for upgrade_id in upgrade_ids:
+        total += upgrade_cost(upgrade_id)
+    return total
+
+
+def draw_exit_sign(center_x, center_y, color, pulse):
+    # An EXIT sign made of glowing line segments.
+    letter_w = 22
+    letter_h = 30
+    gap = 14
+    total = 4 * letter_w + 3 * gap
+    left = center_x - total / 2
+    bottom = center_y - letter_h / 2
+    arcade.draw_lrbt_rectangle_filled(left - 14, left + total + 14, bottom - 10,
+                                      bottom + letter_h + 10, (6, 9, 16, 255))
+    arcade.draw_lrbt_rectangle_outline(left - 14, left + total + 14, bottom - 10,
+                                       bottom + letter_h + 10, with_alpha(color, 160), 2)
+    segments = []
+    x = left
+    for letter in "EXIT":
+        for segment in EXIT_GLYPHS[letter]:
+            a = (x + segment[0][0] * letter_w, bottom + segment[0][1] * letter_h)
+            b = (x + segment[1][0] * letter_w, bottom + segment[1][1] * letter_h)
+            segments.append((a, b))
+        x += letter_w + gap
+    glow_on()
+    for segment in segments:
+        arcade.draw_line(segment[0][0], segment[0][1], segment[1][0], segment[1][1],
+                         with_alpha(color, 70 * pulse), 9)
+    glow_off()
+    for segment in segments:
+        arcade.draw_line(segment[0][0], segment[0][1], segment[1][0], segment[1][1], color, 3)
 
 
 def format_time(seconds):
@@ -536,6 +781,24 @@ class CrispText:
             size = 6
         return size
 
+    def build_label(self, size):
+        self.label = arcade.Text(self.string, 0, 0, self.rgba, size,
+                                 anchor_x=self.anchor_x_value,
+                                 anchor_y=self.anchor_y_value,
+                                 bold=self.bold, font_name=FONT)
+        self.last_size = size
+        self.dirty = False
+
+    def measure(self):
+        # Width of the text in logical units, for boxes that hug a line of text.
+        screen = Screen.active
+        if screen is None:
+            return 0.0
+        size = self.pick_size(screen.scale)
+        if self.label is None or size != self.last_size or self.dirty:
+            self.build_label(size)
+        return self.label.content_width / screen.scale
+
     def draw(self):
         screen = Screen.active
         if screen is None:
@@ -544,12 +807,7 @@ class CrispText:
         size = self.pick_size(screen.scale)
 
         if self.label is None or size != self.last_size or self.dirty:
-            self.label = arcade.Text(self.string, 0, 0, self.rgba, size,
-                                     anchor_x=self.anchor_x_value,
-                                     anchor_y=self.anchor_y_value,
-                                     bold=self.bold, font_name=FONT)
-            self.last_size = size
-            self.dirty = False
+            self.build_label(size)
 
         self.label.position = (int(round(px)), int(round(py)))
         screen.text_camera.use()
@@ -578,6 +836,10 @@ DEFAULTS = {
     "endless_enemies": 2,
     "endless_lives": 3,
     "endless_records": {},
+    "campaign_unlocked": 1,
+    "campaign_rewards": [],
+    "upgrades_owned": [],
+    "upgrades_equipped": [],
 }
 SETTING_KEYS = ["master_volume", "music_volume", "sfx_volume", "fullscreen", "show_fps"]
 
@@ -586,6 +848,9 @@ class SaveData:
     def __init__(self):
         self.data = dict(DEFAULTS)
         self.data["endless_records"] = {}
+        self.data["campaign_rewards"] = []
+        self.data["upgrades_owned"] = []
+        self.data["upgrades_equipped"] = []
         self.load()
 
     def load(self):
@@ -607,6 +872,31 @@ class SaveData:
         self.data["endless_level"] = max(0, min(len(LEVELS) - 1, self.data["endless_level"]))
         self.data["endless_enemies"] = max(1, min(ENDLESS_MAX_ENEMIES, self.data["endless_enemies"]))
         self.data["endless_lives"] = max(1, min(ENDLESS_MAX_LIVES, self.data["endless_lives"]))
+        self.data["campaign_unlocked"] = max(1, min(len(CAMPAIGN_LEVELS),
+                                                    self.data["campaign_unlocked"]))
+
+        rewards = []
+        for value in self.data["campaign_rewards"]:
+            if isinstance(value, int) and not isinstance(value, bool):
+                if 0 <= value < len(CAMPAIGN_LEVELS) and value not in rewards:
+                    rewards.append(value)
+        self.data["campaign_rewards"] = rewards
+
+        owned = []
+        for value in self.data["upgrades_owned"]:
+            if isinstance(value, str) and value in UPGRADES and value not in owned:
+                owned.append(value)
+        self.data["upgrades_owned"] = owned
+
+        equipped = []
+        used = 0
+        for value in self.data["upgrades_equipped"]:
+            if value in owned and value not in equipped:
+                cost = upgrade_cost(value)
+                if used + cost <= TOTAL_UPGRADE_SLOTS:
+                    equipped.append(value)
+                    used += cost
+        self.data["upgrades_equipped"] = equipped
 
         # Each record is {"time": seconds survived, "kills": most kills}.
         clean_records = {}
@@ -730,6 +1020,8 @@ class Obstacle:
             self.radius = spec[3]
         self.flash = 0.0
         self.flash_color = CONDUIT_COLOR
+        self.base_color = CONDUIT_COLOR
+        self.is_door = False
 
     def is_visible(self, view):
         # view is (left, bottom, right, top) or None for "always draw".
@@ -807,7 +1099,7 @@ class Obstacle:
         return (best[1], best[2], best[0] + radius, best[3], best[4])
 
     def draw(self):
-        lit = mix(CONDUIT_COLOR, self.flash_color, self.flash)
+        lit = mix(self.base_color, self.flash_color, self.flash)
         glow = 25 + 130 * self.flash
         if self.kind == "rect":
             left = self.x - self.width / 2
@@ -864,6 +1156,15 @@ class Arena:
             total += edge.length
         self.perimeter = total
 
+        # Walls that actually stop things. A wall can be blown open later, and
+        # then its edges leave this list (the drawn edges stay as they were).
+        self.solid_edges = list(self.edges)
+        self.broken_edges = []
+        self.has_exit = False
+        self.exit_rect = None      # (left, bottom, right, top) of the tunnel
+        self.exit_gate_x = 0.0
+        self.exit_ends = []        # the two wall corners on either side of the hole
+
         self.outer_points = offset_polygon(self.points, 8)
         self.obstacles = []
         for spec in obstacle_specs:
@@ -893,6 +1194,15 @@ class Arena:
         for spec in specs:
             self.obstacles.append(Obstacle(spec))
         self.nav_ready = False   # enemies need a fresh map of what is walkable
+
+    def remove_obstacles(self, items):
+        # Takes obstacles out again (the lobby doors blow away this way).
+        remaining = []
+        for obstacle in self.obstacles:
+            if obstacle not in items:
+                remaining.append(obstacle)
+        self.obstacles = remaining
+        self.nav_ready = False
 
     def clip_segment(self, p0, p1):
         # Trims a line so only the part inside the arena is left.
@@ -991,10 +1301,70 @@ class Arena:
         return (edge.ax + edge.tx * t - edge.nx * offset,
                 edge.ay + edge.ty * t - edge.ny * offset)
 
+    def edge_applies(self, edge, x, y):
+        # Once a hole is blown in the wall, each edge only pushes on things that
+        # are alongside it. Otherwise the long flat reach of a wall next to the
+        # hole would shove you back out of the tunnel.
+        if not self.has_exit:
+            return True
+        along = (x - edge.ax) * edge.tx + (y - edge.ay) * edge.ty
+        return along >= 0.0 and along <= edge.length
+
+    def is_broken_at(self, distance):
+        # True if this spot on the perimeter is part of the blown out wall.
+        if not self.has_exit:
+            return False
+        d = distance % self.perimeter
+        index = bisect.bisect_right(self.starts, d) - 1
+        return self.edges[index] in self.broken_edges
+
+    def span_distance(self, first, count):
+        # Distance along the perimeter to the middle of a run of edges.
+        total = 0.0
+        for i in range(count):
+            total += self.edges[(first + i) % len(self.edges)].length
+        return self.edges[first].start + total / 2
+
+    def open_east_exit(self, first, count, length):
+        # Blows a hole through a run of edges on the east side and adds a
+        # tunnel running east from it. The edges stop being solid, three
+        # obstacles make the tunnel walls, and the frame grows to fit.
+        broken = []
+        for i in range(count):
+            broken.append(self.edges[(first + i) % len(self.edges)])
+        self.broken_edges = broken
+        remaining = []
+        for edge in self.solid_edges:
+            if edge not in broken:
+                remaining.append(edge)
+        self.solid_edges = remaining
+        self.has_exit = True
+
+        a = self.points[first]
+        b = self.points[(first + count) % len(self.points)]
+        self.exit_ends = [a, b]
+        left = min(a[0], b[0])
+        bottom = min(a[1], b[1])
+        top = max(a[1], b[1])
+        right = left + length
+        mid_x = (left + right) / 2
+        mid_y = (bottom + top) / 2
+        self.exit_rect = (left, bottom, right, top)
+        self.exit_gate_x = right - TUNNEL_GATE_MARGIN
+
+        specs = [("rect", mid_x, top + WALL / 2, right - left, WALL),
+                 ("rect", mid_x, bottom - WALL / 2, right - left, WALL),
+                 ("rect", right + WALL / 2, mid_y, WALL, (top - bottom) + WALL * 2)]
+        self.add_obstacles(specs)
+        self.frame = (self.frame[0], self.frame[1],
+                      right + WALL + ARENA_MARGIN, self.frame[3])
+
     def constrain(self, x, y, radius):
         # Keeps a circle inside the walls and out of the obstacles.
         for i in range(3):
-            for edge in self.edges:
+            for edge in self.solid_edges:
+                if not self.edge_applies(edge, x, y):
+                    continue
                 dist = (x - edge.ax) * edge.nx + (y - edge.ay) * edge.ny
                 if dist < radius:
                     x += edge.nx * (radius - dist)
@@ -1007,7 +1377,9 @@ class Arena:
         return (x, y)
 
     def is_free(self, x, y, margin):
-        for edge in self.edges:
+        for edge in self.solid_edges:
+            if not self.edge_applies(edge, x, y):
+                continue
             if (x - edge.ax) * edge.nx + (y - edge.ay) * edge.ny < margin:
                 return False
         for obstacle in self.obstacles:
@@ -1305,6 +1677,108 @@ class WallFlash:
             previous_weight = weight
 
 
+class CrackGlow:
+    # Jagged cracks that glow hotter and hotter on a wall just before it blows.
+    # Draw it between glow_on and glow_off.
+    def __init__(self, x, y, duration):
+        self._x = x
+        self._y = y
+        self._duration = duration
+        self._age = 0.0
+        self._cracks = []
+        for i in range(9):
+            angle = random.uniform(0, math.tau)
+            if i < 4:
+                # the first few run along the wall
+                angle = math.pi / 2 + random.choice([0, math.pi]) + random.uniform(-0.5, 0.5)
+            px = x + random.uniform(-6, 6)
+            py = y + random.uniform(-6, 6)
+            points = [(px, py)]
+            for step in range(4):
+                angle += random.uniform(-0.7, 0.7)
+                length = random.uniform(16, 34)
+                px += math.cos(angle) * length
+                py += math.sin(angle) * length
+                points.append((px, py))
+            self._cracks.append(points)
+
+    def update(self, delta_time):
+        self._age += delta_time
+
+    def is_done(self):
+        return self._age >= self._duration
+
+    def draw(self):
+        t = min(1.0, self._age / self._duration)
+        flicker = 0.7 + 0.3 * math.sin(self._age * 45)
+        strength = (0.15 + 0.85 * t * t) * flicker
+        arcade.draw_circle_filled(self._x, self._y, 20 + 70 * t,
+                                  with_alpha(CONDUIT_COLOR, 30 * strength))
+        for points in self._cracks:
+            for i in range(len(points) - 1):
+                a = points[i]
+                b = points[i + 1]
+                arcade.draw_line(a[0], a[1], b[0], b[1],
+                                 with_alpha(ELITE_COLOR, 90 * strength), 10)
+                arcade.draw_line(a[0], a[1], b[0], b[1],
+                                 with_alpha(WHITE_HOT, 255 * strength), 2)
+
+
+class Debris:
+    # Chunks of wall thrown out by the blast, spinning and burning out.
+    # Draw it between glow_on and glow_off.
+    def __init__(self, x, y):
+        self._age = 0.0
+        self._duration = 1.7
+        self._chunks = []
+        colors = [CONDUIT_COLOR, ENEMY_COLOR, WHITE_HOT]
+        for i in range(70):
+            if random.random() < 0.55:
+                angle = random.uniform(-1.1, 1.1)
+            else:
+                angle = math.pi + random.uniform(-1.1, 1.1)
+            speed = random.uniform(120, 560)
+            chunk = {
+                "x": x + random.uniform(-10, 10),
+                "y": y + random.uniform(-70, 70),
+                "vx": math.cos(angle) * speed,
+                "vy": math.sin(angle) * speed,
+                "angle": random.uniform(0, math.tau),
+                "spin": random.uniform(-9, 9),
+                "size": random.uniform(5, 16),
+                "life": random.uniform(0.7, 1.7),
+                "color": mix(random.choice(colors), WHITE_HOT, random.uniform(0.0, 0.5)),
+            }
+            self._chunks.append(chunk)
+
+    def update(self, delta_time):
+        self._age += delta_time
+        for chunk in self._chunks:
+            chunk["x"] += chunk["vx"] * delta_time
+            chunk["y"] += chunk["vy"] * delta_time
+            chunk["vx"] *= 0.97
+            chunk["vy"] *= 0.97
+            chunk["angle"] += chunk["spin"] * delta_time
+
+    def is_done(self):
+        return self._age >= self._duration
+
+    def draw(self):
+        for chunk in self._chunks:
+            t = self._age / chunk["life"]
+            if t >= 1.0:
+                continue
+            half = chunk["size"] * (1.0 - t * 0.4) / 2
+            corners = [(-half, -half), (half, -half), (half, half), (-half, half)]
+            points = []
+            for corner in corners:
+                points.append(to_world(chunk["x"], chunk["y"], chunk["angle"],
+                                       corner[0], corner[1]))
+            alpha = (1.0 - t) * 255
+            arcade.draw_polygon_filled(points, with_alpha(chunk["color"], alpha * 0.6))
+            arcade.draw_polygon_outline(points, with_alpha(WHITE_HOT, alpha), 1)
+
+
 class Derez:
     # Tron-style shatter: the avatar breaks into little glowing cubes.
     def __init__(self, x, y, color):
@@ -1347,6 +1821,79 @@ class Derez:
                                               shard["y"] - size / 2,
                                               size, size,
                                               with_alpha(shard["color"], (1.0 - t) * 255))
+
+
+class ClusterBurst:
+    # The little blast a disc lets off when it is called back mid flight.
+    # Draw it between glow_on and glow_off.
+    def __init__(self, x, y, radius, color):
+        self._x = x
+        self._y = y
+        self._radius = radius
+        self._color = color
+        self._age = 0.0
+        self._duration = 0.6
+        self._bomblets = []
+        count = 6
+        for i in range(count):
+            bomblet = {
+                "angle": i * math.tau / count + random.uniform(-0.3, 0.3),
+                "distance": radius * random.uniform(0.45, 0.85),
+                "delay": random.uniform(0.0, 0.18),
+            }
+            self._bomblets.append(bomblet)
+
+    def update(self, delta_time):
+        self._age += delta_time
+
+    def is_done(self):
+        return self._age >= self._duration
+
+    def draw(self):
+        t = self._age / self._duration
+        alpha = (1.0 - t) * 255
+        reach = self._radius * min(1.0, t * 1.6)
+        arcade.draw_circle_filled(self._x, self._y, reach, with_alpha(self._color, alpha * 0.08))
+        arcade.draw_circle_outline(self._x, self._y, reach, with_alpha(self._color, alpha * 0.5), 3)
+        for bomblet in self._bomblets:
+            local = (self._age - bomblet["delay"]) / (self._duration - 0.2)
+            if local <= 0.0 or local >= 1.0:
+                continue
+            travel = min(1.0, local * 3.0)
+            bx = self._x + math.cos(bomblet["angle"]) * bomblet["distance"] * travel
+            by = self._y + math.sin(bomblet["angle"]) * bomblet["distance"] * travel
+            pop = 5 + 24 * local
+            fade = (1.0 - local) * 255
+            arcade.draw_circle_outline(bx, by, pop, with_alpha(WHITE_HOT, fade), 2)
+            arcade.draw_circle_filled(bx, by, pop * 0.5, with_alpha(self._color, fade * 0.5))
+
+
+class Afterimage:
+    # The streak left behind when the player blinks. Draw it between glow_on and glow_off.
+    def __init__(self, x0, y0, x1, y1, color):
+        self._x0 = x0
+        self._y0 = y0
+        self._x1 = x1
+        self._y1 = y1
+        self._color = color
+        self._age = 0.0
+        self._duration = 0.4
+
+    def update(self, delta_time):
+        self._age += delta_time
+
+    def is_done(self):
+        return self._age >= self._duration
+
+    def draw(self):
+        t = self._age / self._duration
+        alpha = (1.0 - t) * 255
+        arcade.draw_line(self._x0, self._y0, self._x1, self._y1,
+                         with_alpha(self._color, alpha * 0.25), 16)
+        arcade.draw_line(self._x0, self._y0, self._x1, self._y1,
+                         with_alpha(WHITE_HOT, alpha), 3)
+        arcade.draw_circle_outline(self._x0, self._y0, 14 + 14 * t,
+                                   with_alpha(self._color, alpha), 2)
 
 
 class DataStreak:
@@ -1432,6 +1979,8 @@ class PerimeterLight:
         segments = 16
         step = 10
         for i in range(segments):
+            if self.arena.is_broken_at(self.distance - i * step - step / 2):
+                continue
             p0 = self.arena.point_at(self.distance - i * step)
             p1 = self.arena.point_at(self.distance - (i + 1) * step)
             alpha = (1.0 - i / segments) * 255
@@ -1455,6 +2004,7 @@ class Disc:
         self.flash = 0.0  # brightness boost after hitting a wall
         self.spin = 0.0
         self.trail = []
+        self.hold_angle = 0.0  # where it hovers around the owner (two disc fighters)
 
     def throw(self, angle):
         self.state = FLYING
@@ -1472,8 +2022,9 @@ class Disc:
         if self.state == HELD:
             self.spin += 100 * delta_time
             self.trail = []
-            self.x = self.owner.x + math.cos(aim_angle) * HOLD_DISTANCE
-            self.y = self.owner.y + math.sin(aim_angle) * HOLD_DISTANCE
+            hold = aim_angle + self.hold_angle
+            self.x = self.owner.x + math.cos(hold) * HOLD_DISTANCE
+            self.y = self.owner.y + math.sin(hold) * HOLD_DISTANCE
             return
 
         self.spin += 620 * delta_time
@@ -1512,7 +2063,9 @@ class Disc:
         color = self.owner.color
         hit = False
 
-        for edge in arena.edges:
+        for edge in arena.solid_edges:
+            if not arena.edge_applies(edge, self.x, self.y):
+                continue
             dist = (self.x - edge.ax) * edge.nx + (self.y - edge.ay) * edge.ny
             if dist < DISC_RADIUS:
                 self.x += edge.nx * (DISC_RADIUS - dist)
@@ -1593,7 +2146,21 @@ class Fighter:
         self.facing = 0.0
         self.trail = []
         self.trail_decay = 0.0
+        self.radius = PLAYER_RADIUS
+        self.invulnerable = False   # a champion shrugs off discs
+        self.shield_cooldown = 0.0
+        self.shield_flash = 0.0
         self.disc = Disc(self)
+        self.discs = [self.disc]
+
+    def add_disc(self):
+        extra = Disc(self)
+        self.discs.append(extra)
+        return extra
+
+    def tick(self, delta_time):
+        self.shield_cooldown = max(0.0, self.shield_cooldown - delta_time)
+        self.shield_flash = max(0.0, self.shield_flash - delta_time * 3.0)
 
     def kill(self, effects):
         self.alive = False
@@ -1608,9 +2175,10 @@ class Fighter:
         self.x = self.start_x
         self.y = self.start_y
         self.trail = []
-        self.disc.state = HELD
-        self.disc.vx = 0.0
-        self.disc.vy = 0.0
+        for disc in self.discs:
+            disc.state = HELD
+            disc.vx = 0.0
+            disc.vy = 0.0
 
     def update_trail(self, delta_time, moved):
         if moved:
@@ -1639,11 +2207,28 @@ class Fighter:
         if not self.alive:
             return
 
+        scale = self.radius / PLAYER_RADIUS
         points = []
         for local in BODY_POINTS:
-            points.append(to_world(self.x, self.y, self.facing, local[0], local[1]))
+            points.append(to_world(self.x, self.y, self.facing,
+                                   local[0] * scale, local[1] * scale))
 
         bright = mix(self.color, WHITE_HOT, 0.3)
+
+        if self.invulnerable:
+            # an energy shield that flares when a disc bounces off it
+            ring = self.radius + 9
+            flare = self.shield_flash
+            glow_on()
+            arcade.draw_circle_outline(self.x, self.y, ring,
+                                       with_alpha(self.color, 40 + 150 * flare), 10)
+            glow_off()
+            arcade.draw_circle_outline(self.x, self.y, ring,
+                                       with_alpha(WHITE_HOT, 90 + 165 * flare), 2)
+            for i in range(3):
+                start = self.disc.spin * 0.4 + i * 120
+                arcade.draw_arc_outline(self.x, self.y, ring * 2 + 8, ring * 2 + 8,
+                                        with_alpha(bright, 200), start, start + 40, 2)
 
         glow_on()
         arcade.draw_polygon_outline(points, with_alpha(self.color, 35), 12)
@@ -1657,16 +2242,16 @@ class Fighter:
         # circuit stripes down the back, one spine, one on each side
         stripes = [(-12, 0, 11, 0), (-10, 5, 6, 5), (-10, -5, 6, -5)]
         for s in stripes:
-            a = to_world(self.x, self.y, self.facing, s[0], s[1])
-            b = to_world(self.x, self.y, self.facing, s[2], s[3])
+            a = to_world(self.x, self.y, self.facing, s[0] * scale, s[1] * scale)
+            b = to_world(self.x, self.y, self.facing, s[2] * scale, s[3] * scale)
             arcade.draw_line(a[0], a[1], b[0], b[1], with_alpha(self.color, 200), 1.5)
 
         # helmet
-        helmet = to_world(self.x, self.y, self.facing, 4, 0)
-        arcade.draw_circle_filled(helmet[0], helmet[1], 5.5, (6, 8, 14, 255))
-        arcade.draw_circle_outline(helmet[0], helmet[1], 5.5, bright, 2)
-        visor = to_world(self.x, self.y, self.facing, 6.5, 0)
-        arcade.draw_circle_filled(visor[0], visor[1], 1.8, WHITE_HOT)
+        helmet = to_world(self.x, self.y, self.facing, 4 * scale, 0)
+        arcade.draw_circle_filled(helmet[0], helmet[1], 5.5 * scale, (6, 8, 14, 255))
+        arcade.draw_circle_outline(helmet[0], helmet[1], 5.5 * scale, bright, 2)
+        visor = to_world(self.x, self.y, self.facing, 6.5 * scale, 0)
+        arcade.draw_circle_filled(visor[0], visor[1], 1.8 * scale, WHITE_HOT)
 
 
 class EnemyBrain:
@@ -1683,7 +2268,8 @@ class EnemyBrain:
         self.aim = math.pi
         self.move_angle = math.pi
         self.think_timer = level["interval"] + delay
-        self.prev_state = HELD
+        self.prev_all_held = True
+        self.stun = 0.0
         self.target_x = fighter.x
         self.target_y = fighter.y
         self.move_timer = 0.0
@@ -1695,6 +2281,15 @@ class EnemyBrain:
 
     def update(self, delta_time, player):
         fighter = self.fighter
+
+        if self.stun > 0:
+            # Shaken: stands there, watches you, does nothing else.
+            self.stun -= delta_time
+            fighter.update_trail(delta_time, False)
+            if fighter.alive and player.alive:
+                self.aim = math.atan2(player.y - fighter.y, player.x - fighter.x)
+            fighter.facing = self.aim
+            return
 
         self.has_los = True
         if self.hunt and fighter.alive and player.alive:
@@ -1718,10 +2313,17 @@ class EnemyBrain:
                 self.aim = self.move_angle
         fighter.facing = self.aim
 
-        disc = fighter.disc
-        if self.prev_state != HELD and disc.state == HELD:
+        discs = fighter.discs
+        all_held = True
+        any_flying = False
+        for disc in discs:
+            if disc.state != HELD:
+                all_held = False
+            if disc.state == FLYING:
+                any_flying = True
+        if not self.prev_all_held and all_held:
             self.think_timer = self.level["interval"]
-        self.prev_state = disc.state
+        self.prev_all_held = all_held
 
         # A short reaction delay when the player first comes into view.
         if self.hunt and self.has_los and not self.had_los:
@@ -1730,13 +2332,20 @@ class EnemyBrain:
 
         self.think_timer -= delta_time
         if self.think_timer <= 0:
-            if disc.state == HELD:
+            if all_held:
                 if player.alive and self.has_los:
-                    error = random.uniform(-self.level["error"], self.level["error"])
-                    disc.throw(self.aim + error)
+                    count = len(discs)
+                    for i in range(count):
+                        error = random.uniform(-self.level["error"], self.level["error"])
+                        spread = 0.0
+                        if count > 1:
+                            # two discs fan out a little so one dodge can't beat both
+                            spread = (i - (count - 1) / 2) * 0.3
+                        discs[i].throw(self.aim + error + spread)
                     self.think_timer = 0.9
-            elif disc.state == FLYING:
-                disc.recall()
+            elif any_flying:
+                for disc in discs:
+                    disc.recall()
                 self.think_timer = 0.4
 
     def update_movement(self, delta_time, player):
@@ -1758,7 +2367,7 @@ class EnemyBrain:
         step = min(dist, speed * delta_time)
         fighter.x += dx / dist * step
         fighter.y += dy / dist * step
-        fighter.x, fighter.y = self.arena.constrain(fighter.x, fighter.y, PLAYER_RADIUS)
+        fighter.x, fighter.y = self.arena.constrain(fighter.x, fighter.y, fighter.radius)
         return True
 
     # ------------------------------------------------------------ hunting
@@ -1774,7 +2383,7 @@ class EnemyBrain:
         fighter.x += dx / dist * step
         fighter.y += dy / dist * step
         self.move_angle = math.atan2(dy, dx)
-        fighter.x, fighter.y = self.arena.constrain(fighter.x, fighter.y, PLAYER_RADIUS)
+        fighter.x, fighter.y = self.arena.constrain(fighter.x, fighter.y, fighter.radius)
         return True
 
     def update_hunt_movement(self, delta_time, player):
@@ -1829,6 +2438,180 @@ class EnemyBrain:
             self.path.pop(0)
             return False
         return self.step_toward(target[0], target[1], speed, delta_time)
+
+
+class Bystander:
+    # A non-hostile program. It wanders (if allowed), says a line when you talk
+    # to it, and runs for it when the trouble starts.
+    def __init__(self, x, y, color, body, name, lines, arena, wander):
+        self.x = x
+        self.y = y
+        self.color = color
+        self.name = name
+        self.radius = PLAYER_RADIUS
+        self.facing = random.uniform(0, math.tau)
+        self.is_guide = False     # the usher by the exit doors
+        self.is_lead = False      # the rebel who hands out the upgrade
+        self.marked = False       # rebel badge and halo
+        self.watch = False        # always turns to look at the player
+        self.fleeing = False
+        self.gone = False
+        self.bubble_time = 0.0
+        self._body = body
+        self._lines = list(lines)
+        self._line_index = 0
+        if len(self._lines) > 1:
+            self._line_index = random.randint(0, len(self._lines) - 1)
+        self._arena = arena
+        self._wander = wander
+        self._moving = False
+        self._target_x = x
+        self._target_y = y
+        self._wait = random.uniform(0.2, 2.5)
+        self._move_clock = 0.0
+        self._speed = random.uniform(48, 74)
+        self._talk_pause = 0.0
+        self._flee_dx = 0.0
+        self._flee_dy = 0.0
+        self._flee_speed = 0.0
+        self._flee_time = 0.0
+        self._alpha = 1.0
+        self._clock = random.uniform(0, 6)
+        self._bubble = make_text("", 0, 0, WHITE_HOT, 11)
+
+    def face(self, target_x, target_y):
+        self.facing = math.atan2(target_y - self.y, target_x - self.x)
+
+    def shout(self, text, seconds):
+        self._bubble.text = text
+        self.bubble_time = seconds
+
+    def say(self):
+        if len(self._lines) == 0:
+            return
+        text = self._lines[self._line_index % len(self._lines)]
+        self._line_index += 1
+        self.shout(text, BUBBLE_TIME)
+        self._talk_pause = BUBBLE_TIME * 0.8
+
+    def flee(self, from_x, from_y, text, speed):
+        angle = math.atan2(self.y - from_y, self.x - from_x) + random.uniform(-0.6, 0.6)
+        self._flee_dx = math.cos(angle)
+        self._flee_dy = math.sin(angle)
+        self._flee_speed = speed * random.uniform(0.85, 1.1)
+        self._flee_time = 0.0
+        self.fleeing = True
+        self.shout(text, 1.8)
+
+    def update(self, delta_time, player):
+        self._clock += delta_time
+        self.bubble_time = max(0.0, self.bubble_time - delta_time)
+        if self.fleeing:
+            self.update_flee(delta_time)
+            return
+        near = False
+        if player.alive:
+            near = math.hypot(player.x - self.x, player.y - self.y) < 56
+            if self.watch or near or self._talk_pause > 0:
+                self.face(player.x, player.y)
+        if self._talk_pause > 0:
+            self._talk_pause -= delta_time
+            return
+        if near or not self._wander:
+            return
+        self.wander_step(delta_time)
+
+    def wander_step(self, delta_time):
+        if self._wait > 0:
+            self._wait -= delta_time
+            return
+        if not self._moving:
+            point = self._arena.nearby_point(self.x, self.y, 260, self.radius + 12)
+            if point is None:
+                self._wait = 1.0
+                return
+            self._target_x = point[0]
+            self._target_y = point[1]
+            self._moving = True
+            self._move_clock = 0.0
+        self._move_clock += delta_time
+        dx = self._target_x - self.x
+        dy = self._target_y - self.y
+        dist = math.hypot(dx, dy)
+        if dist < 6 or self._move_clock > 6.0:
+            self._moving = False
+            self._wait = random.uniform(0.8, 3.5)
+            return
+        step = min(dist, self._speed * delta_time)
+        self.x += dx / dist * step
+        self.y += dy / dist * step
+        self.facing = math.atan2(dy, dx)
+        self.x, self.y = self._arena.constrain(self.x, self.y, self.radius)
+
+    def update_flee(self, delta_time):
+        self._flee_time += delta_time
+        self.x += self._flee_dx * self._flee_speed * delta_time
+        self.y += self._flee_dy * self._flee_speed * delta_time
+        self.x, self.y = self._arena.constrain(self.x, self.y, self.radius)
+        self.facing = math.atan2(self._flee_dy, self._flee_dx)
+        if self._flee_time > 2.2:
+            self._alpha = max(0.0, self._alpha - delta_time / 0.6)
+            if self._alpha <= 0.0:
+                self.gone = True
+
+    def draw(self):
+        if self.gone:
+            return
+        fade = self._alpha
+        points = []
+        for local in self._body:
+            points.append(to_world(self.x, self.y, self.facing, local[0], local[1]))
+        bright = mix(self.color, WHITE_HOT, 0.3)
+
+        if self.marked:
+            # a slow halo, so the rebels read as a group
+            glow_on()
+            arcade.draw_circle_outline(self.x, self.y, 25, with_alpha(self.color, 50 * fade), 8)
+            glow_off()
+            for i in range(3):
+                start = self._clock * 50 + i * 120
+                arcade.draw_arc_outline(self.x, self.y, 54, 54,
+                                        with_alpha(bright, 190 * fade), start, start + 40, 2)
+
+        glow_on()
+        arcade.draw_polygon_outline(points, with_alpha(self.color, 35 * fade), 12)
+        arcade.draw_polygon_outline(points, with_alpha(self.color, 90 * fade), 6)
+        glow_off()
+        arcade.draw_polygon_filled(points, (6, 8, 14, int(255 * fade)))
+        arcade.draw_polygon_outline(points, with_alpha(bright, 255 * fade), 2)
+
+        helmet = to_world(self.x, self.y, self.facing, 3, 0)
+        arcade.draw_circle_filled(helmet[0], helmet[1], 5, (6, 8, 14, int(255 * fade)))
+        arcade.draw_circle_outline(helmet[0], helmet[1], 5, with_alpha(bright, 255 * fade), 2)
+        visor = to_world(self.x, self.y, self.facing, 5.5, 0)
+        arcade.draw_circle_filled(visor[0], visor[1], 1.6, with_alpha(WHITE_HOT, 255 * fade))
+
+        if self.marked:
+            badge = []
+            for local in [(-3, 0), (-7, 4), (-11, 0), (-7, -4)]:
+                badge.append(to_world(self.x, self.y, self.facing, local[0], local[1]))
+            arcade.draw_polygon_filled(badge, with_alpha(bright, 255 * fade))
+
+    def draw_bubble(self, lx, ly):
+        # Call while the screen camera is active. lx, ly is a spot in logical coordinates.
+        fade = min(1.0, self.bubble_time / 0.4)
+        self._bubble.x = lx
+        self._bubble.y = ly + 12
+        self._bubble.color = with_alpha(WHITE_HOT, 255 * fade)
+        width = self._bubble.measure() + 22
+        left = lx - width / 2
+        right = lx + width / 2
+        arcade.draw_lrbt_rectangle_filled(left, right, ly, ly + 24, (6, 9, 16, int(235 * fade)))
+        arcade.draw_lrbt_rectangle_outline(left, right, ly, ly + 24,
+                                           with_alpha(self.color, 255 * fade), 2)
+        arcade.draw_triangle_filled(lx - 6, ly, lx + 6, ly, lx, ly - 8,
+                                    with_alpha(self.color, 255 * fade))
+        self._bubble.draw()
 
 
 class DemoOwner:
@@ -2073,12 +2856,69 @@ class ArenaBackdrop:
             seams.append((bounds[2] + 14, y))
             seams.append((frame_right, y))
         arcade.draw_lines(seams, (28, 34, 48, 255), 2)
+        self.draw_exit_tunnel()
+
+    def draw_exit_tunnel(self):
+        # The tunnel behind a blown out wall. It is drawn on top of the solid
+        # frame, so it looks like a passage carved through it.
+        arena = self.arena
+        rect = arena.exit_rect
+        if rect is None:
+            return
+        left = rect[0]
+        bottom = rect[1]
+        right = rect[2]
+        top = rect[3]
+        mid_y = (bottom + top) / 2
+
+        arcade.draw_lrbt_rectangle_filled(left - 4, right, bottom, top, (0, 0, 0, 255))
+
+        lines = []
+        first = int(math.ceil((left - arena.cx) / GRID))
+        last = int(math.floor((right - arena.cx) / GRID))
+        for k in range(first, last + 1):
+            x = arena.cx + k * GRID
+            lines.append((x, bottom))
+            lines.append((x, top))
+        first = int(math.ceil((bottom - arena.cy) / GRID))
+        last = int(math.floor((top - arena.cy) / GRID))
+        for k in range(first, last + 1):
+            y = arena.cy + k * GRID
+            lines.append((left, y))
+            lines.append((right, y))
+        arcade.draw_lines(lines, (60, 150, 200, 22), 1)
+
+        glow_on()
+        arcade.draw_line(left, bottom + 2, right, bottom + 2, with_alpha(CONDUIT_COLOR, 30), 12)
+        arcade.draw_line(left, top - 2, right, top - 2, with_alpha(CONDUIT_COLOR, 30), 12)
+        arcade.draw_line(left, bottom + 2, right, bottom + 2, with_alpha(CONDUIT_COLOR, 110), 2)
+        arcade.draw_line(left, top - 2, right, top - 2, with_alpha(CONDUIT_COLOR, 110), 2)
+        # dashes of light running down the tunnel toward the exit
+        span = right - left
+        for i in range(6):
+            x = left + (self.clock * 260 + i * span / 6) % span
+            arcade.draw_line(x - 34, mid_y, x, mid_y, with_alpha(CONDUIT_COLOR, 130), 3)
+        glow_off()
+
+    def draw_outline(self, color, width):
+        # The arena outline. A blown out wall is left out of it.
+        arena = self.arena
+        if not arena.has_exit:
+            arcade.draw_polygon_outline(arena.points, color, width)
+            return
+        count = len(arena.points)
+        for i in range(count):
+            if arena.edges[i] in arena.broken_edges:
+                continue
+            a = arena.points[i]
+            b = arena.points[(i + 1) % count]
+            arcade.draw_line(a[0], a[1], b[0], b[1], color, width)
 
     def draw_conduit(self):
         arena = self.arena
         glow_on()
-        arcade.draw_polygon_outline(arena.points, with_alpha(CONDUIT_COLOR, 18), 22)
-        arcade.draw_polygon_outline(arena.points, with_alpha(CONDUIT_COLOR, 45), 10)
+        self.draw_outline(with_alpha(CONDUIT_COLOR, 18), 22)
+        self.draw_outline(with_alpha(CONDUIT_COLOR, 45), 10)
         if len(arena.points) <= 12:
             # fill the notch at each sharp corner
             for point in arena.points:
@@ -2087,9 +2927,14 @@ class ArenaBackdrop:
             light.draw()
         for flash in self.flashes:
             flash.draw()
+        # the two torn wall ends burn around a blown out hole
+        hot = 0.7 + 0.3 * math.sin(self.clock * 8)
+        for end in arena.exit_ends:
+            arcade.draw_circle_filled(end[0], end[1], 16, with_alpha(ENEMY_COLOR, 50 * hot))
+            arcade.draw_circle_filled(end[0], end[1], 6, with_alpha(WHITE_HOT, 200 * hot))
         glow_off()
 
-        arcade.draw_polygon_outline(arena.points, with_alpha(CONDUIT_COLOR, 200), 2)
+        self.draw_outline(with_alpha(CONDUIT_COLOR, 200), 2)
 
         # heavy white brackets
         for center in arena.bracket_distances:
@@ -2612,7 +3457,7 @@ MODES = [
     {"id": "endless", "name": "ENDLESS", "blurb": "OUTLAST THE GRID",
      "ready": True, "status": "SURVIVE"},
     {"id": "campaign", "name": "CAMPAIGN", "blurb": "REWRITE THE LEGACY",
-     "ready": True, "status": "1 MISSION"},
+     "ready": True, "status": str(len(CAMPAIGN_LEVELS)) + " MISSIONS"},
     {"id": "custom", "name": "CUSTOM", "blurb": "BUILD YOUR OWN BATTLES",
      "ready": False, "status": "COMING SOON"},
 ]
@@ -2659,7 +3504,7 @@ class ModeSelectView(BaseView):
         elif mode["id"] == "endless":
             self.window.show_view(EndlessSetupView(self))
         elif mode["id"] == "campaign":
-            self.window.show_view(GameView(0, None, 0))
+            self.window.show_view(CampaignSelectView(self))
         else:
             self.window.show_view(PlaceholderView(self, mode["name"], mode["blurb"]))
 
@@ -2988,6 +3833,285 @@ class EndlessSetupView(BaseView):
         self.draw_fps()
 
 
+class CampaignSelectView(BaseView):
+    def __init__(self, previous_view):
+        super().__init__()
+        self.previous_view = previous_view
+        self.backdrop = ArenaBackdrop()
+        self.title = make_text("CAMPAIGN", CENTER_X, 588, WHITE_HOT, 30, bold=True)
+        self.subtitle = make_text("CHOOSE A MISSION", CENTER_X, 556, TEXT_DIM, 12)
+        self.hint = make_text("UP / DOWN + ENTER, OR USE THE MOUSE        ESC BACK",
+                              CENTER_X, 22, (90, 170, 200), 11)
+        unlocked = self.window.save.get("campaign_unlocked")
+        entries = []
+        for i in range(len(CAMPAIGN_LEVELS)):
+            if i < unlocked:
+                label = level_label(i) + "   " + CAMPAIGN_LEVELS[i]["name"]
+                entries.append((label, self.make_starter(i)))
+            else:
+                entries.append((level_label(i) + "   LOCKED", self.do_nothing))
+        entries.append(("< BACK", self.go_back))
+        self.menu = MenuList(entries, CENTER_X, 470, 62, 460, 48)
+        self.menu.selected = max(0, unlocked - 1)
+
+    def make_starter(self, index):
+        def start():
+            self.window.show_view(GameView(0, None, index))
+        return start
+
+    def do_nothing(self):
+        pass
+
+    def go_back(self):
+        self.window.show_view(self.previous_view)
+
+    def update_view(self, delta_time):
+        self.backdrop.update(delta_time)
+
+    def key_pressed(self, key, modifiers):
+        if key == arcade.key.ESCAPE:
+            self.go_back()
+        else:
+            self.menu.key_pressed(key)
+
+    def mouse_moved(self, lx, ly):
+        self.menu.mouse_moved(lx, ly)
+
+    def mouse_pressed(self, lx, ly, button):
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            self.menu.mouse_pressed(lx, ly)
+
+    def on_draw(self):
+        self.clear()
+        self.screen.use()
+        self.draw_backdrop(self.backdrop)
+        self.title.draw()
+        self.subtitle.draw()
+        self.menu.draw(self.clock)
+        self.hint.draw()
+        self.draw_fps()
+
+
+class UpgradeSelectView(BaseView):
+    # Pick one upgrade for the build. Shown by the rebels at the end of mission 2.
+    CARD_WIDTH = 230
+    CARD_HEIGHT = 320
+    CARD_SPACING = 252
+    CARD_Y = 290
+
+    def __init__(self, game_view):
+        super().__init__()
+        self.game_view = game_view
+        self.backdrop = ArenaBackdrop()
+        save = self.window.save
+        self.owned = list(save.get("upgrades_owned"))
+        self.equipped = list(save.get("upgrades_equipped"))
+        self.used = slots_used(self.equipped)
+        self.selected = 0
+
+        title = "CHOOSE AN UPGRADE"
+        if len(self.owned) == 0:
+            title = "CHOOSE YOUR FIRST UPGRADE"
+        self.title = make_text(title, CENTER_X, 618, WHITE_HOT, 30, bold=True)
+        self.subtitle = make_text("LEVEL 1 MODS TAKE 3 SLOTS     LEVEL 2 TAKE 2     LEVEL 3 TAKE 1",
+                                  CENTER_X, 588, TEXT_DIM, 12)
+        self.slot_label = make_text("", CENTER_X + 190, 545, TEXT_DIM, 12,
+                                    anchor_x="left", bold=True)
+        self.hint = make_text("LEFT / RIGHT + ENTER, OR USE THE MOUSE", CENTER_X, 22,
+                              (90, 170, 200), 11)
+
+        count = len(UPGRADE_ORDER)
+        self.card_xs = []
+        self.name_texts = []
+        self.info_texts = []
+        self.key_texts = []
+        self.blurb_texts = []
+        self.status_texts = []
+        for i in range(count):
+            cx = CENTER_X + (i - (count - 1) / 2) * self.CARD_SPACING
+            cy = self.CARD_Y
+            data = UPGRADES[UPGRADE_ORDER[i]]
+            self.card_xs.append(cx)
+            self.name_texts.append(make_text(data["name"], cx, cy + 30, WHITE_HOT, 15, bold=True))
+            info = "LVL " + str(data["level"]) + "     " + str(upgrade_cost(UPGRADE_ORDER[i])) + " SLOTS"
+            self.info_texts.append(make_text(info, cx, cy + 4, TEXT_DIM, 11))
+            self.key_texts.append(make_text(data["key"], cx, cy - 22, ENEMY_COLOR, 13, bold=True))
+            lines = []
+            for j in range(len(data["blurb"])):
+                lines.append(make_text(data["blurb"][j], cx, cy - 56 - j * 20, TEXT_DIM, 11))
+            self.blurb_texts.append(lines)
+            self.status_texts.append(make_text("", cx, cy - 132, WHITE_HOT, 12, bold=True))
+
+    def can_take(self, upgrade_id):
+        if upgrade_id in self.owned:
+            return False
+        return self.used + upgrade_cost(upgrade_id) <= TOTAL_UPGRADE_SLOTS
+
+    def choose(self, index):
+        upgrade_id = UPGRADE_ORDER[index]
+        if not self.can_take(upgrade_id):
+            return
+        save = self.window.save
+        save.data["upgrades_owned"].append(upgrade_id)
+        save.data["upgrades_equipped"].append(upgrade_id)
+        if self.game_view.campaign not in save.data["campaign_rewards"]:
+            save.data["campaign_rewards"].append(self.game_view.campaign)
+        save.save()
+        self.game_view.upgrade_gained = upgrade_id
+        self.window.show_view(self.game_view)
+
+    def update_view(self, delta_time):
+        self.backdrop.update(delta_time)
+
+    def key_pressed(self, key, modifiers):
+        count = len(UPGRADE_ORDER)
+        if key == arcade.key.LEFT or key == arcade.key.A:
+            self.selected = (self.selected - 1) % count
+        elif key == arcade.key.RIGHT or key == arcade.key.D:
+            self.selected = (self.selected + 1) % count
+        elif key == arcade.key.ENTER or key == arcade.key.NUM_ENTER or key == arcade.key.SPACE:
+            self.choose(self.selected)
+
+    def card_at(self, lx, ly):
+        for i in range(len(self.card_xs)):
+            if (abs(lx - self.card_xs[i]) <= self.CARD_WIDTH / 2 and
+                    abs(ly - self.CARD_Y) <= self.CARD_HEIGHT / 2):
+                return i
+        return -1
+
+    def mouse_moved(self, lx, ly):
+        index = self.card_at(lx, ly)
+        if index >= 0:
+            self.selected = index
+
+    def mouse_pressed(self, lx, ly, button):
+        if button != arcade.MOUSE_BUTTON_LEFT:
+            return
+        index = self.card_at(lx, ly)
+        if index >= 0:
+            self.selected = index
+            self.choose(index)
+
+    def draw_icon(self, upgrade_id, cx, cy, color):
+        if upgrade_id == "parry":
+            outer = [(cx - 30, cy + 34), (cx + 30, cy + 34), (cx + 30, cy - 2),
+                     (cx, cy - 36), (cx - 30, cy - 2)]
+            inner = [(cx - 18, cy + 22), (cx + 18, cy + 22), (cx + 18, cy - 4),
+                     (cx, cy - 22), (cx - 18, cy - 4)]
+            arcade.draw_polygon_outline(outer, color, 4)
+            arcade.draw_polygon_outline(inner, with_alpha(color, 120), 2)
+        elif upgrade_id == "cluster":
+            arcade.draw_circle_outline(cx, cy, 16, color, 3)
+            for i in range(6):
+                angle = math.radians(self.clock * 60 + i * 60)
+                arcade.draw_circle_outline(cx + math.cos(angle) * 42, cy + math.sin(angle) * 42,
+                                           7, with_alpha(color, 220), 2)
+        else:
+            arcade.draw_circle_outline(cx - 38, cy, 16, with_alpha(color, 90), 3)
+            arcade.draw_circle_outline(cx + 38, cy, 16, color, 3)
+            for x in [cx - 10, cx + 6]:
+                arcade.draw_line(x - 6, cy + 14, x + 4, cy, color, 3)
+                arcade.draw_line(x - 6, cy - 14, x + 4, cy, color, 3)
+
+    def draw_slots(self):
+        box = 30
+        gap = 8
+        total = TOTAL_UPGRADE_SLOTS
+        first = CENTER_X - (total * box + (total - 1) * gap) / 2
+        y = 545
+        upgrade_id = UPGRADE_ORDER[self.selected]
+        preview = 0
+        if self.can_take(upgrade_id):
+            preview = upgrade_cost(upgrade_id)
+        pulse = 0.5 + 0.5 * math.sin(self.clock * 5)
+        for i in range(total):
+            left = first + i * (box + gap)
+            right = left + box
+            bottom = y - box / 2
+            top = y + box / 2
+            if i < self.used:
+                glow_on()
+                arcade.draw_lrbt_rectangle_filled(left, right, bottom, top,
+                                                  with_alpha(PLAYER_COLOR, 110))
+                glow_off()
+                arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, PLAYER_COLOR, 2)
+            elif i < self.used + preview:
+                glow_on()
+                arcade.draw_lrbt_rectangle_filled(left, right, bottom, top,
+                                                  with_alpha(ENEMY_COLOR, 60 + 120 * pulse))
+                glow_off()
+                arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, ENEMY_COLOR, 2)
+            else:
+                arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, (50, 90, 120, 255), 2)
+        self.slot_label.text = "SLOTS " + str(self.used) + " / " + str(total)
+        self.slot_label.draw()
+
+    def draw_card(self, index):
+        cx = self.card_xs[index]
+        cy = self.CARD_Y
+        left = cx - self.CARD_WIDTH / 2
+        right = cx + self.CARD_WIDTH / 2
+        bottom = cy - self.CARD_HEIGHT / 2
+        top = cy + self.CARD_HEIGHT / 2
+        upgrade_id = UPGRADE_ORDER[index]
+        available = self.can_take(upgrade_id)
+        selected = (index == self.selected)
+
+        arcade.draw_lrbt_rectangle_filled(left, right, bottom, top, (6, 9, 16, 240))
+        if selected:
+            glow_on()
+            arcade.draw_lrbt_rectangle_filled(left, right, bottom, top,
+                                              with_alpha(PLAYER_COLOR, 16))
+            arcade.draw_lrbt_rectangle_outline(left, right, bottom, top,
+                                               with_alpha(PLAYER_COLOR, 45), 14)
+            arcade.draw_lrbt_rectangle_outline(left, right, bottom, top,
+                                               with_alpha(PLAYER_COLOR, 90), 6)
+            glow_off()
+            arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, CONDUIT_COLOR, 2)
+        else:
+            arcade.draw_lrbt_rectangle_outline(left, right, bottom, top, (50, 90, 120, 255), 2)
+
+        tick = (90, 190, 240, 255)
+        arcade.draw_line(left + 10, top - 10, left + 30, top - 10, tick, 2)
+        arcade.draw_line(left + 10, top - 10, left + 10, top - 30, tick, 2)
+        arcade.draw_line(right - 10, bottom + 10, right - 30, bottom + 10, tick, 2)
+        arcade.draw_line(right - 10, bottom + 10, right - 10, bottom + 30, tick, 2)
+
+        if available:
+            icon_color = mix(PLAYER_COLOR, WHITE_HOT, 0.25)
+            self.name_texts[index].color = WHITE_HOT
+            self.status_texts[index].text = "READY TO FIT"
+            self.status_texts[index].color = ENEMY_COLOR
+        else:
+            icon_color = (70, 100, 125)
+            self.name_texts[index].color = (130, 160, 180)
+            if upgrade_id in self.owned:
+                self.status_texts[index].text = "OWNED"
+            else:
+                self.status_texts[index].text = "NO SLOTS"
+            self.status_texts[index].color = (110, 140, 160)
+
+        self.draw_icon(upgrade_id, cx, cy + 95, icon_color)
+        self.name_texts[index].draw()
+        self.info_texts[index].draw()
+        self.key_texts[index].draw()
+        for line in self.blurb_texts[index]:
+            line.draw()
+        self.status_texts[index].draw()
+
+    def on_draw(self):
+        self.clear()
+        self.screen.use()
+        self.draw_backdrop(self.backdrop)
+        self.title.draw()
+        self.subtitle.draw()
+        self.draw_slots()
+        for i in range(len(UPGRADE_ORDER)):
+            self.draw_card(i)
+        self.hint.draw()
+        self.draw_fps()
+
+
 class PlaceholderView(BaseView):
     # Stand-in screen for modes that are not built yet.
     def __init__(self, previous_view, name, blurb):
@@ -3252,13 +4376,50 @@ class GameView(BaseView):
         self.campaign = campaign
         self.is_endless = endless is not None
         self.is_campaign = campaign is not None
+        self.is_lobby = False
+        self.in_hideout = False
+        self.door_obstacles = []
+        self.bystanders = []
+        self.talk_lines = []
+        self.talk_index = 0
+        self.talk_time = 0.0
+        self.alarm_time = 0.0
+        self.gap_timer = 0.0
+        self.voice_line = VOICE_LINE
+        self.upgrade_gained = ""
+
+        # campaign waves, the breach and the escape
+        self.waves = []
+        self.wave_index = 0
+        self.next_wave = 0
+        self.wave_kills = 0        # kills in the current wave
+        self.wave_time = 0.0       # seconds into the current wave
+        self.wave_timer = 0.0      # the pause after a wave is cleared
+        self.breach_time = 0.0
+        self.breach_distance = 0.0
+        self.rumble_timer = 0.0
+        self.shake = 0.0           # camera shake, in pixels
+        self.white_flash = 0.0     # full screen flash from the blast
+        self.voice_active = False
+        self.voice_time = 0.0
+        self.speech_lines = []
 
         if self.is_campaign:
             self.level = dict(CAMPAIGN_LEVELS[campaign])
-            corridor = self.level["corridor"]
-            self.arena = Arena("rect", [], corridor["bounds"])
-            start = corridor["player_start"]
-            self.phase = "corridor"
+            self.is_lobby = self.level.get("kind", "arena") == "lobby"
+            self.waves = self.level["waves"]
+            self.apply_wave(0)
+            if self.is_lobby:
+                self.arena = make_arena(self.level)
+                self.door_obstacles = self.add_doors()
+                start = self.level["player_start"]
+                self.phase = "lobby_fade_in"
+            else:
+                self.speech_lines = self.level["speech"]
+                corridor = self.level["corridor"]
+                self.arena = Arena("rect", [], corridor["bounds"])
+                start = corridor["player_start"]
+                self.phase = "corridor"
         else:
             self.level = dict(LEVELS[level_index])
             self.arena = make_arena(self.level)
@@ -3266,7 +4427,7 @@ class GameView(BaseView):
             self.phase = "fight"
         self.backdrop = ArenaBackdrop(self.arena)
 
-        self.lives_total = LIVES
+        self.lives_total = self.level.get("lives", LIVES)
         self.endless_key = ""
         self.best_time = 0.0
         self.best_kills = 0
@@ -3292,6 +4453,15 @@ class GameView(BaseView):
         self.base_level = dict(self.level)
 
         self.keys_down = set()
+        # upgrades only count in the campaign for now
+        self.equipped = []
+        if self.is_campaign:
+            self.equipped = list(save.get("upgrades_equipped"))
+        self.parry_time = 0.0
+        self.parry_cooldown = 0.0
+        self.overcharge_cooldown = 0.0
+        self.overcharge_iframes = 0.0
+
         self.mouse_x = WIDTH / 2   # mouse position on the screen layout (not the world)
         self.mouse_y = HEIGHT / 2
 
@@ -3301,6 +4471,8 @@ class GameView(BaseView):
         self.fighters = [self.player]
         if not self.is_campaign:
             self.spawn_enemies()
+        if self.is_lobby:
+            self.build_lobby_crowd()
 
         self.camera = FollowCamera()
         self.camera_ready = False
@@ -3321,6 +4493,8 @@ class GameView(BaseView):
         self.speech_index = 0
         self.speech_time = 0.0
         self.reveal_time = 0.0
+        if self.is_lobby:
+            self.fade = 1.0
 
         font_hint = (90, 170, 200)
         if self.is_endless:
@@ -3336,14 +4510,30 @@ class GameView(BaseView):
         self.best_kills_text = make_text("", 40, HEIGHT - 76, TEXT_DIM, 11, anchor_x="left")
         self.time_value = make_text("0:00", CENTER_X, HEIGHT - 68, WHITE_HOT, 20, bold=True)
         self.best_time_text = make_text("", CENTER_X, HEIGHT - 92, TEXT_DIM, 11)
-        self.hint = make_text("WASD MOVE      CLICK THROW      SPACE RECALL      ESC PAUSE",
-                              CENTER_X, 22, font_hint, 11)
+        self.hint = make_text(self.build_hint(), CENTER_X, 22, font_hint, 11)
         self.announce_label = make_text("ANNOUNCER", 140, HEIGHT - 74, PLAYER_COLOR, 10,
                                         anchor_x="left", bold=True)
         self.announce_text = make_text("", 140, HEIGHT - 106, WHITE_HOT, 15, anchor_x="left")
+        self.wave_text = make_text("", CENTER_X, HEIGHT - 64, TEXT_DIM, 12)
+        self.survive_value = make_text("", CENTER_X, HEIGHT - 92, WHITE_HOT, 22, bold=True)
+        self.survive_label = make_text("SURVIVE", CENTER_X, HEIGHT - 116, TEXT_DIM, 11)
+        self.prompt_text = make_text("E TALK", 0, 0, WHITE_HOT, 11, bold=True)
+        self.talk_hint = make_text("E / CLICK TO CONTINUE", WIDTH - 136, HEIGHT - 124,
+                                   (90, 170, 200), 10, anchor_x="right")
+        self.upgrade_texts = {}
+        index = 0
+        for upgrade_id in self.equipped:
+            self.upgrade_texts[upgrade_id] = make_text(UPGRADES[upgrade_id]["hud"],
+                                                       40 + index * 150 + 69, 54, TEXT_DIM, 10,
+                                                       bold=True)
+            index += 1
 
     def view_shown(self):
         self.keys_down = set()
+        if self.phase == "hideout_pick":
+            # back from the upgrade screen: the mission is done
+            self.phase = "hideout_done"
+            self.finish("won")
         if not self.camera_ready:
             self.camera.snap(self.player.x, self.player.y, self.arena, self.screen)
             self.camera_ready = True
@@ -3355,10 +4545,26 @@ class GameView(BaseView):
         self.brains = []
         for i in range(self.level["enemies"]):
             spot = self.level["enemy_starts"][i]
-            enemy = Fighter(spot[0], spot[1], ENEMY_COLORS[i % len(ENEMY_COLORS)], "enemy")
+            color = ENEMY_COLORS[i % len(ENEMY_COLORS)]
+            brain_level = self.level
+            is_elite = self.level.get("elite", False) and i == 0
+            if is_elite:
+                # The champion gets its own numbers, the rest share the wave's.
+                color = ELITE_COLOR
+                brain_level = dict(self.level)
+                brain_level["speed"] = self.level["elite_speed"]
+                brain_level["interval"] = self.level["elite_interval"]
+                brain_level["error"] = self.level["elite_error"]
+            enemy = Fighter(spot[0], spot[1], color, "enemy")
             enemy.facing = math.pi
+            if is_elite:
+                enemy.radius = ELITE_RADIUS
+                enemy.invulnerable = True
+                second = enemy.add_disc()
+                enemy.discs[0].hold_angle = 0.5
+                second.hold_angle = -0.5
             self.enemies.append(enemy)
-            self.brains.append(EnemyBrain(enemy, self.level, self.arena, min(i * 0.8, 3.0)))
+            self.brains.append(EnemyBrain(enemy, brain_level, self.arena, min(i * 0.8, 3.0)))
         self.fighters = [self.player] + self.enemies
 
     def controls_locked(self):
@@ -3432,14 +4638,20 @@ class GameView(BaseView):
         self.camera.snap(self.player.x, self.player.y, self.arena, self.screen)
         self.phase = "fading_in"
 
+    def set_speaker(self, name, color):
+        self.announce_label.text = name
+        self.announce_label.color = color
+
     def start_speech(self):
         self.phase = "speech"
+        self.speech_lines = self.level["speech"]
         self.speech_index = 0
         self.speech_time = -SPEECH_LEAD
+        self.set_speaker("ANNOUNCER", PLAYER_COLOR)
         self.announce_text.text = ""
 
     def update_speech(self, delta_time):
-        lines = self.level["speech"]
+        lines = self.speech_lines
         line = lines[self.speech_index]
         self.speech_time += delta_time
 
@@ -3453,7 +4665,7 @@ class GameView(BaseView):
             self.speech_time = 0.0
             if self.speech_index >= len(lines):
                 self.announce_text.text = ""
-                self.start_reveal()
+                self.speech_finished()
 
     def start_reveal(self):
         self.phase = "reveal"
@@ -3469,6 +4681,7 @@ class GameView(BaseView):
             obstacle.flash_color = WHITE_HOT
             self.backdrop.effects.append(Pulse(obstacle.x, obstacle.y, WHITE_HOT, 70, 0.5))
         self.phase = "fight"
+        self.wave_time = 0.0
 
     def update_cutscene(self, delta_time):
         # Everyone stands still. Only the camera, effects and fade move.
@@ -3476,7 +4689,8 @@ class GameView(BaseView):
         self.player.facing = self.player_aim_angle()
         self.player.update_trail(delta_time, False)
         for fighter in self.fighters:
-            fighter.disc.update(delta_time, effects, fighter.facing, self.arena)
+            for disc in fighter.discs:
+                disc.update(delta_time, effects, fighter.facing, self.arena)
 
         if self.phase == "fading_out":
             self.fade = min(1.0, self.fade + delta_time / FADE_OUT_TIME)
@@ -3492,6 +4706,614 @@ class GameView(BaseView):
             self.reveal_time += delta_time
             if self.reveal_time >= REVEAL_TIME:
                 self.finish_reveal()
+        elif self.phase == "wave_clear":
+            self.wave_timer += delta_time
+            if self.wave_timer >= WAVE_CLEAR_TIME:
+                self.start_wave_speech()
+        elif self.phase == "wave_speech":
+            self.update_speech(delta_time)
+        elif self.phase == "exit_fade":
+            self.fade = min(1.0, self.fade + delta_time / EXIT_FADE_TIME)
+            if self.fade >= 1.0:
+                self.phase = "complete"
+                self.finish("won")
+        elif self.phase == "lobby_fade_in":
+            self.fade = max(0.0, self.fade - delta_time / LOBBY_FADE_IN_TIME)
+            if self.fade <= 0.0:
+                self.phase = "lobby"
+        elif self.phase == "lobby_talk" or self.phase == "hideout_talk":
+            self.update_talk(delta_time)
+        elif self.phase == "lobby_alarm":
+            self.update_alarm(delta_time)
+        elif self.phase == "lobby_exit_fade":
+            self.fade = min(1.0, self.fade + delta_time / EXIT_FADE_TIME)
+            if self.fade >= 1.0:
+                self.enter_hideout()
+        elif self.phase == "hideout_fade_in":
+            self.fade = max(0.0, self.fade - delta_time / FADE_IN_TIME)
+            if self.fade <= 0.0:
+                self.phase = "hideout"
+
+    # ------------------------------------------------------------ waves
+
+    def apply_wave(self, index):
+        # Copies one wave's numbers into the level, which the brains read from.
+        wave = self.waves[index]
+        self.wave_index = index
+        self.wave_kills = 0
+        self.wave_time = 0.0
+        for key in ["enemies", "kills", "interval", "error", "speed", "enemy_starts"]:
+            self.level[key] = wave[key]
+        self.level["elite"] = wave.get("elite", False)
+        self.level["elite_speed"] = wave.get("elite_speed", 0)
+        self.level["elite_interval"] = wave.get("elite_interval", 2.0)
+        self.level["elite_error"] = wave.get("elite_error", 0.1)
+        self.level["survive"] = wave.get("survive", 0.0)
+
+    def clear_wave(self):
+        # Last kill of the wave: whoever is left derezzes and things go quiet.
+        effects = self.backdrop.effects
+        for enemy in self.enemies:
+            if enemy.alive:
+                enemy.kill(effects)
+        self.player.disc.recall()
+        self.enemies = []
+        self.brains = []
+        self.fighters = [self.player]
+        self.phase = "wave_clear"
+        self.wave_timer = 0.0
+
+    def start_wave_speech(self):
+        self.next_wave = self.wave_index + 1
+        wave = self.waves[self.next_wave]
+        effects = self.backdrop.effects
+        effects.append(Pulse(self.player.x, self.player.y, PLAYER_COLOR, 80, 0.4))
+        self.player.respawn()
+        self.player.facing = 0.0
+        effects.append(Pulse(self.player.x, self.player.y, PLAYER_COLOR, 80, 0.4))
+        self.phase = "wave_speech"
+        self.speech_lines = wave["lines"]
+        self.speech_index = 0
+        self.speech_time = -SPEECH_LEAD
+        self.set_speaker("ANNOUNCER", PLAYER_COLOR)
+        self.announce_text.text = ""
+
+    def speech_finished(self):
+        if self.phase == "speech":
+            self.start_reveal()
+        else:
+            self.begin_wave(self.next_wave)
+
+    def begin_wave(self, index):
+        self.apply_wave(index)
+        self.spawn_enemies()
+        for enemy in self.enemies:
+            self.backdrop.effects.append(Pulse(enemy.x, enemy.y, enemy.color, 80, 0.5))
+        self.phase = "fight"
+        if self.is_lobby:
+            self.phase = "guards"
+
+    # ------------------------------------------------------------ breach and escape
+
+    def start_breach(self):
+        # The survive timer ran out. The wall cracks and rumbles first.
+        breach = self.level["breach"]
+        self.phase = "breach"
+        self.breach_time = 0.0
+        self.rumble_timer = 0.0
+        self.breach_distance = self.arena.span_distance(breach["first_edge"],
+                                                        breach["edge_count"])
+        point = self.arena.point_at(self.breach_distance)
+        self.backdrop.flashes.append(CrackGlow(point[0], point[1], BREACH_WARN_TIME + 0.1))
+
+    def update_breach(self, delta_time):
+        self.breach_time += delta_time
+        frac = min(1.0, self.breach_time / BREACH_WARN_TIME)
+        self.shake = max(self.shake, 1.0 + 6.0 * frac)
+        self.rumble_timer -= delta_time
+        if self.rumble_timer <= 0:
+            self.rumble_timer = 0.4 - 0.25 * frac
+            point = self.arena.point_at(self.breach_distance)
+            self.backdrop.effects.append(Pulse(point[0], point[1], ELITE_COLOR,
+                                               40 + 60 * frac, 0.45))
+        if self.breach_time >= BREACH_WARN_TIME:
+            self.blow_wall()
+
+    def blow_wall(self):
+        breach = self.level["breach"]
+        point = self.arena.point_at(self.breach_distance)
+        self.arena.open_east_exit(breach["first_edge"], breach["edge_count"],
+                                  breach["length"])
+
+        effects = self.backdrop.effects
+        effects.append(Debris(point[0], point[1]))
+        effects.append(WallFlash(self.arena, self.breach_distance, WHITE_HOT))
+        effects.append(Pulse(point[0], point[1], WHITE_HOT, 380, 0.7))
+        effects.append(Pulse(point[0], point[1], CONDUIT_COLOR, 260, 0.9))
+        effects.append(Pulse(point[0], point[1], ENEMY_COLOR, 180, 0.5))
+        self.shake = 24.0
+        self.white_flash = 1.0
+
+        for brain in self.brains:
+            if brain.fighter.invulnerable:
+                brain.stun = ELITE_STUN
+
+        self.set_speaker("UNKNOWN VOICE", VOICE_COLOR)
+        self.voice_active = True
+        self.voice_time = 0.0
+        self.announce_text.text = ""
+        self.phase = "escape"
+
+    def update_voice(self, delta_time):
+        # A voice line that types out while you keep playing.
+        if not self.voice_active:
+            return
+        self.voice_time += delta_time
+        chars = int(self.voice_time * VOICE_CHARS_PER_SECOND)
+        chars = max(0, min(len(self.voice_line), chars))
+        self.announce_text.text = self.voice_line[:chars]
+        typed_time = len(self.voice_line) / VOICE_CHARS_PER_SECOND
+        if self.voice_time >= typed_time + VOICE_HOLD:
+            self.voice_active = False
+            self.announce_text.text = ""
+
+    def check_tunnel_exit(self):
+        if self.player.alive and self.player.x >= self.arena.exit_gate_x:
+            self.keys_down = set()
+            self.phase = "exit_fade"
+
+    # ------------------------------------------------------------ upgrades
+
+    def has_upgrade(self, upgrade_id):
+        return upgrade_id in self.equipped
+
+    def build_hint(self):
+        gap = "     "
+        recall = "RECALL"
+        if self.has_upgrade("cluster"):
+            recall = "BURST RECALL"
+        text = "WASD MOVE" + gap + "CLICK THROW" + gap + "SPACE " + recall
+        if self.is_lobby:
+            text = text + gap + "E TALK"
+        if self.has_upgrade("parry"):
+            text = text + gap + "RMB PARRY"
+        if self.has_upgrade("overcharge"):
+            text = text + gap + "SHIFT OVERCHARGE"
+        text = text + gap + "ESC PAUSE"
+        return text
+
+    def move_input(self):
+        dx = 0
+        dy = 0
+        if arcade.key.W in self.keys_down:
+            dy += 1
+        if arcade.key.S in self.keys_down:
+            dy -= 1
+        if arcade.key.A in self.keys_down:
+            dx -= 1
+        if arcade.key.D in self.keys_down:
+            dx += 1
+        return (dx, dy)
+
+    def is_peaceful(self):
+        # No throwing while you are just walking around talking to people.
+        return self.phase == "lobby" or self.phase == "hideout"
+
+    def reset_upgrade_state(self):
+        self.parry_time = 0.0
+        self.parry_cooldown = 0.0
+        self.overcharge_cooldown = 0.0
+        self.overcharge_iframes = 0.0
+        self.player.invulnerable = False
+
+    def register_kill(self, target):
+        target.kill(self.backdrop.effects)
+        if target is self.player:
+            self.deaths += 1
+        else:
+            self.kills += 1
+            self.wave_kills += 1
+            if self.is_endless:
+                self.apply_ramp()
+        self.check_result()
+
+    def recall_player_disc(self):
+        disc = self.player.disc
+        if disc.state == FLYING and self.has_upgrade("cluster"):
+            self.cluster_burst(disc.x, disc.y)
+        disc.recall()
+
+    def cluster_burst(self, x, y):
+        self.backdrop.effects.append(ClusterBurst(x, y, CLUSTER_RADIUS, PLAYER_COLOR))
+        for enemy in list(self.enemies):
+            if not enemy.alive:
+                continue
+            dist = math.hypot(enemy.x - x, enemy.y - y)
+            if dist >= CLUSTER_RADIUS + enemy.radius:
+                continue
+            if enemy.invulnerable:
+                enemy.shield_flash = 1.0
+                continue
+            self.register_kill(enemy)
+
+    def try_parry(self):
+        if not self.has_upgrade("parry") or not self.player.alive:
+            return
+        if self.parry_time > 0 or self.parry_cooldown > 0:
+            return
+        self.parry_time = PARRY_TIME
+        self.parry_cooldown = PARRY_COOLDOWN
+        self.player.invulnerable = True
+        self.backdrop.effects.append(Pulse(self.player.x, self.player.y, WHITE_HOT, 60, 0.3))
+
+    def try_overcharge(self):
+        if not self.has_upgrade("overcharge") or not self.player.alive:
+            return
+        if self.overcharge_cooldown > 0:
+            return
+        dx, dy = self.move_input()
+        if dx == 0 and dy == 0:
+            return
+        length = math.hypot(dx, dy)
+        dx = dx / length
+        dy = dy / length
+        start_x = self.player.x
+        start_y = self.player.y
+        end_x = start_x
+        end_y = start_y
+        found = False
+        distance = OVERCHARGE_DISTANCE
+        while distance >= OVERCHARGE_MIN_DISTANCE:
+            end_x = start_x + dx * distance
+            end_y = start_y + dy * distance
+            if self.arena.is_free(end_x, end_y, PLAYER_RADIUS):
+                if self.arena.line_clear(start_x, start_y, end_x, end_y, PLAYER_RADIUS):
+                    found = True
+                    break
+            distance -= 10
+        if not found:
+            return
+        effects = self.backdrop.effects
+        effects.append(Afterimage(start_x, start_y, end_x, end_y, PLAYER_COLOR))
+        effects.append(Pulse(end_x, end_y, WHITE_HOT, 60, 0.3))
+        self.player.x = end_x
+        self.player.y = end_y
+        self.player.trail = []
+        self.overcharge_cooldown = OVERCHARGE_COOLDOWN
+        self.overcharge_iframes = OVERCHARGE_IFRAMES
+
+    def update_upgrades(self, delta_time):
+        if self.parry_time > 0:
+            self.parry_time -= delta_time
+            if self.parry_time <= 0:
+                self.parry_time = 0.0
+                self.player.invulnerable = False
+        self.parry_cooldown = max(0.0, self.parry_cooldown - delta_time)
+        self.overcharge_cooldown = max(0.0, self.overcharge_cooldown - delta_time)
+        self.overcharge_iframes = max(0.0, self.overcharge_iframes - delta_time)
+
+    def upgrade_ready(self, upgrade_id):
+        # 0.0 to 1.0, how charged the HUD box should look.
+        if upgrade_id == "parry":
+            return 1.0 - self.parry_cooldown / PARRY_COOLDOWN
+        if upgrade_id == "overcharge":
+            return 1.0 - self.overcharge_cooldown / OVERCHARGE_COOLDOWN
+        if self.player.disc.state == FLYING:
+            return 1.0
+        return 0.0
+
+    # ------------------------------------------------------------ mission 2: the arcade lobby
+
+    def add_doors(self):
+        before = len(self.arena.obstacles)
+        self.arena.add_obstacles(self.level["doors"])
+        doors = self.arena.obstacles[before:]
+        for door in doors:
+            door.is_door = True
+            door.base_color = DOOR_COLOR
+        return doors
+
+    def build_lobby_crowd(self):
+        start = self.level["player_start"]
+        spot = self.level["usher_start"]
+        usher = Bystander(spot[0], spot[1], GUIDE_COLOR, GUIDE_BODY_POINTS, "USHER",
+                          [], self.arena, False)
+        usher.is_guide = True
+        usher.marked = True
+        usher.watch = True
+        self.bystanders.append(usher)
+
+        attempts = 0
+        while len(self.bystanders) < CROWD_SIZE + 1 and attempts < 400:
+            attempts += 1
+            point = self.arena.random_point(PLAYER_RADIUS + 16, start[0], start[1], 260)
+            if point is None or point[0] > CROWD_MAX_X:
+                continue
+            too_close = False
+            for other in self.bystanders:
+                if math.hypot(point[0] - other.x, point[1] - other.y) < 80:
+                    too_close = True
+            if too_close:
+                continue
+            color = random.choice(CIVILIAN_COLORS)
+            body = random.choice(CIVILIAN_BODIES)
+            lines = random.sample(CROWD_LINES, 4)
+            self.bystanders.append(Bystander(point[0], point[1], color, body, "PATRON",
+                                             lines, self.arena, True))
+
+    def build_hideout_crowd(self):
+        index = 0
+        for spec in self.level["hideout"]["rebels"]:
+            color = REBEL_COLORS[index % len(REBEL_COLORS)]
+            rebel = Bystander(spec["pos"][0], spec["pos"][1], color, GUIDE_BODY_POINTS,
+                              spec["name"], spec["lines"], self.arena, spec["wander"])
+            rebel.marked = True
+            if spec["lead"]:
+                rebel.is_lead = True
+                rebel.watch = True
+            self.bystanders.append(rebel)
+            index += 1
+
+    def update_bystanders(self, delta_time):
+        if len(self.bystanders) == 0:
+            return
+        remaining = []
+        for npc in self.bystanders:
+            npc.update(delta_time, self.player)
+            if not npc.gone:
+                remaining.append(npc)
+        self.bystanders = remaining
+
+    def nearest_bystander(self):
+        best = None
+        best_dist = INTERACT_RANGE
+        for npc in self.bystanders:
+            if npc.gone or npc.fleeing:
+                continue
+            dist = math.hypot(npc.x - self.player.x, npc.y - self.player.y)
+            if dist < best_dist:
+                best = npc
+                best_dist = dist
+        return best
+
+    def interact(self):
+        if not self.is_peaceful() or not self.player.alive:
+            return
+        npc = self.nearest_bystander()
+        if npc is None:
+            return
+        if npc.is_guide:
+            self.start_talk(self.level["usher_lines"])
+        elif npc.is_lead:
+            hide = self.level["hideout"]
+            if self.campaign in self.window.save.get("campaign_rewards"):
+                self.start_talk(hide["repeat_lines"])
+            else:
+                self.start_talk(hide["lead_lines"])
+        else:
+            npc.say()
+
+    def start_talk(self, lines):
+        self.keys_down = set()
+        self.talk_lines = lines
+        self.talk_index = 0
+        self.talk_time = 0.0
+        if self.phase == "lobby":
+            self.phase = "lobby_talk"
+        else:
+            self.phase = "hideout_talk"
+        self.show_talk_line()
+
+    def show_talk_line(self):
+        name = self.talk_lines[self.talk_index][0]
+        color = PLAYER_COLOR
+        if name in SPEAKER_COLORS:
+            color = SPEAKER_COLORS[name]
+        self.set_speaker(name, color)
+        self.announce_text.text = ""
+
+    def talk_line_typed(self):
+        text = self.talk_lines[self.talk_index][1]
+        return self.talk_time * SPEECH_CHARS_PER_SECOND >= len(text) - 0.001
+
+    def update_talk(self, delta_time):
+        text = self.talk_lines[self.talk_index][1]
+        self.talk_time += delta_time
+        chars = int(self.talk_time * SPEECH_CHARS_PER_SECOND)
+        chars = max(0, min(len(text), chars))
+        self.announce_text.text = text[:chars]
+
+    def advance_talk(self):
+        text = self.talk_lines[self.talk_index][1]
+        if not self.talk_line_typed():
+            self.talk_time = len(text) / SPEECH_CHARS_PER_SECOND
+            self.announce_text.text = text
+            return
+        self.talk_index += 1
+        if self.talk_index >= len(self.talk_lines):
+            self.announce_text.text = ""
+            self.talk_finished()
+            return
+        self.talk_time = 0.0
+        self.show_talk_line()
+
+    def talk_finished(self):
+        if self.phase == "lobby_talk":
+            self.start_alarm()
+        elif self.phase == "hideout_talk":
+            if self.campaign in self.window.save.get("campaign_rewards"):
+                self.finish("won")
+            else:
+                self.open_upgrade_pick()
+
+    def open_upgrade_pick(self):
+        self.phase = "hideout_pick"
+        self.window.show_view(UpgradeSelectView(self))
+
+    def start_alarm(self):
+        self.phase = "lobby_alarm"
+        self.alarm_time = 0.0
+        self.rumble_timer = 0.0
+        door = self.level["door_pos"]
+        for part in self.door_obstacles:
+            self.backdrop.flashes.append(CrackGlow(part.x, part.y, ALARM_WARN_TIME + 0.1))
+        for npc in self.bystanders:
+            speed = CIVILIAN_FLEE_SPEED
+            text = random.choice(FLEE_LINES)
+            if npc.is_guide:
+                speed = 215
+                text = "STAY ALIVE, GLADIATOR!"
+            npc.flee(door[0], door[1], text, speed)
+
+    def update_alarm(self, delta_time):
+        self.alarm_time += delta_time
+        frac = min(1.0, self.alarm_time / ALARM_WARN_TIME)
+        self.shake = max(self.shake, 1.0 + 6.0 * frac)
+        self.rumble_timer -= delta_time
+        if self.rumble_timer <= 0:
+            self.rumble_timer = 0.4 - 0.25 * frac
+            door = self.level["door_pos"]
+            self.backdrop.effects.append(Pulse(door[0], door[1], ELITE_COLOR,
+                                               40 + 80 * frac, 0.45))
+        if self.alarm_time >= ALARM_WARN_TIME:
+            self.blast_doors()
+
+    def blast_doors(self):
+        door = self.level["door_pos"]
+        self.arena.remove_obstacles(self.door_obstacles)
+        self.door_obstacles = []
+        effects = self.backdrop.effects
+        effects.append(Debris(door[0], door[1]))
+        effects.append(Pulse(door[0], door[1], WHITE_HOT, 380, 0.7))
+        effects.append(Pulse(door[0], door[1], CONDUIT_COLOR, 260, 0.9))
+        effects.append(Pulse(door[0], door[1], ENEMY_COLOR, 180, 0.5))
+        self.shake = 24.0
+        self.white_flash = 1.0
+        self.begin_wave(0)
+
+    def clear_enemies(self):
+        for enemy in self.enemies:
+            if enemy.alive:
+                enemy.kill(self.backdrop.effects)
+        self.player.disc.recall()
+        self.enemies = []
+        self.brains = []
+        self.fighters = [self.player]
+
+    def check_lobby_result(self):
+        if self.deaths >= self.lives_total:
+            self.finish("lost")
+            return
+        if self.phase == "guards" and self.wave_kills >= self.level["kills"]:
+            if self.wave_index + 1 >= len(self.waves):
+                self.end_guard_fight()
+            else:
+                self.start_gap()
+
+    def start_gap(self):
+        self.clear_enemies()
+        self.phase = "guards_gap"
+        self.gap_timer = 0.0
+        self.next_wave = self.wave_index + 1
+        door = self.level["door_pos"]
+        self.backdrop.effects.append(Pulse(door[0], door[1], ENEMY_COLOR, 160, 0.6))
+        self.shake = max(self.shake, 8.0)
+
+    def update_gap(self, delta_time):
+        self.gap_timer += delta_time
+        if self.gap_timer >= GUARD_GAP_TIME:
+            self.begin_wave(self.next_wave)
+
+    def end_guard_fight(self):
+        self.clear_enemies()
+        self.phase = "lobby_escape"
+        self.voice_line = LOBBY_VOICE_LINE
+        self.set_speaker("USHER", GUIDE_COLOR)
+        self.voice_active = True
+        self.voice_time = 0.0
+        self.announce_text.text = ""
+
+    def check_lobby_exit(self):
+        if self.player.alive and self.player.x >= self.level["gate_x"]:
+            self.keys_down = set()
+            self.phase = "lobby_exit_fade"
+
+    def enter_hideout(self):
+        # The screen is black right now. Swap the lobby for the rebel hideout.
+        hide = self.level["hideout"]
+        self.arena = Arena("rect", hide["obstacles"], hide["bounds"])
+        self.backdrop = ArenaBackdrop(self.arena)
+        self.in_hideout = True
+        self.voice_active = False
+        self.announce_text.text = ""
+        start = hide["player_start"]
+        self.player.start_x = start[0]
+        self.player.start_y = start[1]
+        self.player.respawn()
+        self.player.facing = 0.0
+        self.reset_upgrade_state()
+        self.bystanders = []
+        self.build_hideout_crowd()
+        self.camera.snap(self.player.x, self.player.y, self.arena, self.screen)
+        self.phase = "hideout_fade_in"
+
+    def draw_bubbles(self):
+        offset_x = CENTER_X - self.camera.x
+        offset_y = CENTER_Y - self.camera.y
+        for npc in self.bystanders:
+            if not npc.gone and npc.bubble_time > 0:
+                npc.draw_bubble(npc.x + offset_x, npc.y + offset_y + 34)
+        if self.mode == "playing" and self.is_peaceful() and self.player.alive:
+            npc = self.nearest_bystander()
+            if npc is not None and npc.bubble_time <= 0:
+                px = npc.x + offset_x
+                py = npc.y + offset_y + 34
+                arcade.draw_lrbt_rectangle_filled(px - 36, px + 36, py, py + 20, (6, 9, 16, 235))
+                arcade.draw_lrbt_rectangle_outline(px - 36, px + 36, py, py + 20, CONDUIT_COLOR, 2)
+                self.prompt_text.x = px
+                self.prompt_text.y = py + 10
+                self.prompt_text.draw()
+
+    def draw_lobby_hud(self):
+        if self.phase in DIALOGUE_PHASES or self.voice_active:
+            return
+        text = ""
+        if self.phase == "lobby":
+            text = "OBJECTIVE   TALK TO THE USHER AT THE EXIT DOORS"
+        elif self.phase == "guards":
+            text = "SQUAD " + str(self.wave_index + 1) + " / " + str(len(self.waves))
+        elif self.phase == "guards_gap":
+            text = "MORE GUARDS INCOMING"
+        elif self.phase == "lobby_escape":
+            text = "OBJECTIVE   GET OUT THROUGH THE DOORS"
+        elif self.phase == "hideout":
+            text = "OBJECTIVE   FIND ARC"
+        if text == "":
+            return
+        self.wave_text.text = text
+        self.wave_text.draw()
+
+    def draw_upgrade_hud(self):
+        index = 0
+        for upgrade_id in self.equipped:
+            left = 40 + index * 150
+            right = left + 138
+            fraction = max(0.0, min(1.0, self.upgrade_ready(upgrade_id)))
+            arcade.draw_lrbt_rectangle_filled(left, right, 42, 66, (6, 9, 16, 235))
+            if fraction > 0:
+                glow_on()
+                arcade.draw_lrbt_rectangle_filled(left, left + (right - left) * fraction, 42, 66,
+                                                  with_alpha(PLAYER_COLOR, 55))
+                glow_off()
+            text = self.upgrade_texts[upgrade_id]
+            if fraction >= 1.0:
+                arcade.draw_lrbt_rectangle_outline(left, right, 42, 66, CONDUIT_COLOR, 2)
+                text.color = WHITE_HOT
+            else:
+                arcade.draw_lrbt_rectangle_outline(left, right, 42, 66, (50, 90, 120, 255), 2)
+                text.color = TEXT_DIM
+            text.draw()
+            index += 1
 
     # ------------------------------------------------------------ overlays
 
@@ -3509,12 +5331,18 @@ class GameView(BaseView):
             title = "LEVEL COMPLETE"
             if self.is_campaign:
                 title = "MISSION COMPLETE"
+                if self.campaign + 1 < len(CAMPAIGN_LEVELS):
+                    entries.append(("NEXT MISSION", self.next_mission))
             elif self.level_index < len(LEVELS) - 1:
                 entries.append(("NEXT LEVEL", self.next_level))
             entries.append(("REPLAY", self.restart))
             entries.append(("MAIN MENU", self.main_menu))
             title_color = PLAYER_COLOR
             sub = "DEREZZED " + str(self.kills) + "     LIVES LOST " + str(self.deaths)
+            if self.is_campaign:
+                sub = self.level.get("complete_text", "MISSION COMPLETE") + "     " + sub
+                if self.upgrade_gained != "":
+                    note = "NEW UPGRADE   " + UPGRADES[self.upgrade_gained]["name"]
             if not self.is_campaign and self.level_index == len(LEVELS) - 1:
                 sub = "ALL LEVELS CLEARED     " + sub
         elif self.is_endless:
@@ -3553,6 +5381,9 @@ class GameView(BaseView):
     def next_level(self):
         self.window.show_view(GameView(self.level_index + 1))
 
+    def next_mission(self):
+        self.window.show_view(GameView(0, None, self.campaign + 1))
+
     def open_options(self):
         self.window.show_view(OptionsView(self))
 
@@ -3572,6 +5403,11 @@ class GameView(BaseView):
             self.new_best_time, self.new_best_kills = self.record_endless_run()
             return
         if self.is_campaign:
+            if result == "won":
+                save = self.window.save
+                save.data["campaign_unlocked"] = max(save.get("campaign_unlocked"),
+                                                     min(self.campaign + 2, len(CAMPAIGN_LEVELS)))
+                save.save()
             return
         if result == "won":
             save = self.window.save
@@ -3588,8 +5424,17 @@ class GameView(BaseView):
             if key == arcade.key.ESCAPE and not self.finished:
                 self.keys_down = set()
                 self.open_overlay("paused")
+            elif self.phase in DIALOGUE_PHASES:
+                if (key == arcade.key.E or key == arcade.key.ENTER or
+                        key == arcade.key.NUM_ENTER or key == arcade.key.SPACE):
+                    self.advance_talk()
             elif key == arcade.key.SPACE and not self.controls_locked():
-                self.player.disc.recall()
+                self.recall_player_disc()
+            elif key == arcade.key.E and not self.controls_locked():
+                self.interact()
+            elif key == arcade.key.LSHIFT or key == arcade.key.RSHIFT:
+                if not self.controls_locked():
+                    self.try_overcharge()
         else:
             if key == arcade.key.ESCAPE and self.mode == "paused":
                 self.resume()
@@ -3607,13 +5452,23 @@ class GameView(BaseView):
             self.overlay.mouse_moved(lx, ly)
 
     def mouse_pressed(self, lx, ly, button):
-        if button != arcade.MOUSE_BUTTON_LEFT:
-            return
         if self.mode != "playing":
-            self.overlay.mouse_pressed(lx, ly)
-        elif not self.finished and not self.controls_locked():
-            if self.player.alive and self.player.disc.state == HELD:
+            if button == arcade.MOUSE_BUTTON_LEFT:
+                self.overlay.mouse_pressed(lx, ly)
+            return
+        if self.finished:
+            return
+        if self.phase in DIALOGUE_PHASES:
+            if button == arcade.MOUSE_BUTTON_LEFT:
+                self.advance_talk()
+            return
+        if self.controls_locked():
+            return
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            if self.player.alive and self.player.disc.state == HELD and not self.is_peaceful():
                 self.player.disc.throw(self.player_aim_angle())
+        elif button == arcade.MOUSE_BUTTON_RIGHT:
+            self.try_parry()
 
     def mouse_dragged(self, lx, ly):
         self.mouse_x = lx
@@ -3638,6 +5493,11 @@ class GameView(BaseView):
         # Cap big frame gaps so fast discs can't skip through thin walls.
         delta_time = min(delta_time, 1 / 30)
 
+        self.shake = max(0.0, self.shake - delta_time * 28.0)
+        self.white_flash = max(0.0, self.white_flash - delta_time * 1.8)
+        self.update_voice(delta_time)
+        self.update_bystanders(delta_time)
+
         self.backdrop.update(delta_time)
         self.update_camera(delta_time)
 
@@ -3660,22 +5520,38 @@ class GameView(BaseView):
             self.run_time += delta_time
 
         self.player.facing = self.player_aim_angle()
+        self.update_upgrades(delta_time)
         self.update_player_movement(delta_time)
         for brain in self.brains:
             brain.update(delta_time, self.player)
 
         self.player.disc.update(delta_time, effects, self.player_aim_angle(), self.arena)
         for brain in self.brains:
-            brain.fighter.disc.update(delta_time, effects, brain.aim, self.arena)
+            for disc in brain.fighter.discs:
+                disc.update(delta_time, effects, brain.aim, self.arena)
 
+        for fighter in self.fighters:
+            fighter.tick(delta_time)
         self.check_disc_hits()
         self.update_respawns(delta_time)
 
         if self.phase == "corridor":
             self.check_corridor_exit()
+        elif self.is_campaign and self.phase == "fight" and self.level.get("survive", 0.0) > 0:
+            self.wave_time += delta_time
+            if self.wave_time >= self.level["survive"]:
+                self.start_breach()
+        elif self.phase == "breach":
+            self.update_breach(delta_time)
+        elif self.phase == "escape":
+            self.check_tunnel_exit()
+        elif self.phase == "guards_gap":
+            self.update_gap(delta_time)
+        elif self.phase == "lobby_escape":
+            self.check_lobby_exit()
 
     def update_camera(self, delta_time):
-        if self.is_campaign and self.phase in ("speech", "reveal"):
+        if self.is_campaign and self.phase in ("speech", "reveal", "wave_speech"):
             # Look at the middle of the arena while the show happens.
             self.camera.update(delta_time, self.arena.cx, self.arena.cy,
                                self.arena, self.screen)
@@ -3689,16 +5565,7 @@ class GameView(BaseView):
     def update_player_movement(self, delta_time):
         moved = False
         if self.player.alive:
-            dx = 0
-            dy = 0
-            if arcade.key.W in self.keys_down:
-                dy += 1
-            if arcade.key.S in self.keys_down:
-                dy -= 1
-            if arcade.key.A in self.keys_down:
-                dx -= 1
-            if arcade.key.D in self.keys_down:
-                dx += 1
+            dx, dy = self.move_input()
             if dx != 0 or dy != 0:
                 length = math.hypot(dx, dy)
                 self.player.x += dx / length * PLAYER_SPEED * delta_time
@@ -3708,29 +5575,56 @@ class GameView(BaseView):
                 moved = True
         self.player.update_trail(delta_time, moved)
 
+    def deflect_disc(self, disc, target):
+        # A disc hits a champion: a flare, a bounce, and nothing else.
+        if target.shield_cooldown > 0:
+            return
+        target.shield_cooldown = 0.25
+        target.shield_flash = 1.0
+        dx = disc.x - target.x
+        dy = disc.y - target.y
+        dist = math.hypot(dx, dy)
+        nx = 1.0
+        ny = 0.0
+        if dist > 0.001:
+            nx = dx / dist
+            ny = dy / dist
+        effects = self.backdrop.effects
+        effects.append(Pulse(target.x + nx * target.radius, target.y + ny * target.radius,
+                             WHITE_HOT, 60, 0.3))
+        effects.append(Pulse(target.x, target.y, target.color, 90, 0.4))
+        disc.flash = 1.0
+        if disc.state == FLYING:
+            speed_in = disc.vx * nx + disc.vy * ny
+            if speed_in < 0:
+                disc.vx -= 2 * speed_in * nx
+                disc.vy -= 2 * speed_in * ny
+            disc.x = target.x + nx * (target.radius + DISC_RADIUS + 1)
+            disc.y = target.y + ny * (target.radius + DISC_RADIUS + 1)
+
     def check_disc_hits(self):
         for fighter in self.fighters:
-            disc = fighter.disc
-            if disc.state == HELD:
-                continue
-            for target in self.fighters:
-                if not target.alive:
+            for disc in fighter.discs:
+                if disc.state == HELD:
                     continue
-                if target is fighter:
-                    if not FRIENDLY_FIRE:
+                for target in self.fighters:
+                    if self.controls_locked():
+                        return
+                    if not target.alive:
                         continue
-                elif target.team == fighter.team:
-                    continue
-                dist = math.hypot(target.x - disc.x, target.y - disc.y)
-                if dist < PLAYER_RADIUS + DISC_RADIUS:
-                    target.kill(self.backdrop.effects)
-                    if target is self.player:
-                        self.deaths += 1
-                    else:
-                        self.kills += 1
-                        if self.is_endless:
-                            self.apply_ramp()
-                    self.check_result()
+                    if target is fighter:
+                        if not FRIENDLY_FIRE:
+                            continue
+                    elif target.team == fighter.team:
+                        continue
+                    dist = math.hypot(target.x - disc.x, target.y - disc.y)
+                    if dist < target.radius + DISC_RADIUS:
+                        if target is self.player and self.overcharge_iframes > 0:
+                            continue
+                        if target.invulnerable:
+                            self.deflect_disc(disc, target)
+                            continue
+                        self.register_kill(target)
 
     def check_result(self):
         if self.finished:
@@ -3738,6 +5632,19 @@ class GameView(BaseView):
         if self.is_endless:
             if self.deaths >= self.lives_total:
                 self.finish("lost")
+            return
+        if self.is_lobby:
+            self.check_lobby_result()
+            return
+        if self.is_campaign:
+            if self.deaths >= self.lives_total:
+                self.finish("lost")
+            elif self.phase == "fight" and self.level["survive"] <= 0:
+                if self.wave_kills >= self.level["kills"]:
+                    if self.wave_index + 1 >= len(self.waves):
+                        self.finish("won")
+                    else:
+                        self.clear_wave()
             return
         if self.kills >= self.level["kills"]:
             self.finish("won")
@@ -3757,7 +5664,12 @@ class GameView(BaseView):
         self.clear()
 
         # The world, seen through the following camera.
-        self.screen.use_world(self.camera.x, self.camera.y)
+        shake_x = 0.0
+        shake_y = 0.0
+        if self.shake > 0.1:
+            shake_x = random.uniform(-self.shake, self.shake)
+            shake_y = random.uniform(-self.shake, self.shake)
+        self.screen.use_world(self.camera.x + shake_x, self.camera.y + shake_y)
         view = self.screen.view_rect(self.camera.x, self.camera.y, 80)
         b = self.backdrop
 
@@ -3769,7 +5681,8 @@ class GameView(BaseView):
         b.draw_effects()
         for fighter in self.fighters:
             fighter.draw_trail()
-            fighter.disc.draw_trail()
+            for disc in fighter.discs:
+                disc.draw_trail()
         glow_off()
 
         b.draw_frame()
@@ -3777,19 +5690,36 @@ class GameView(BaseView):
         b.draw_obstacles(view)
 
         if self.is_campaign and self.phase == "corridor":
-            self.draw_exit_gate()
+            bounds = self.arena.bounds
+            self.draw_exit_gate(bounds[2] - CORRIDOR_EXIT_MARGIN, bounds[1], bounds[3], 3)
+        elif self.is_lobby and self.phase == "lobby_escape":
+            bounds = self.arena.bounds
+            self.draw_exit_gate(self.level["gate_x"], bounds[1], bounds[3], 5)
+        elif self.arena.exit_rect is not None:
+            rect = self.arena.exit_rect
+            self.draw_exit_gate(self.arena.exit_gate_x, rect[1], rect[3], 5)
 
+        if self.is_lobby and not self.in_hideout:
+            door = self.level["door_pos"]
+            draw_exit_sign(door[0], door[1] + 275, DOOR_COLOR, 0.7 + 0.3 * math.sin(self.clock * 3))
+        for npc in self.bystanders:
+            npc.draw()
         for fighter in self.fighters:
             fighter.draw()
         for fighter in self.fighters:
-            fighter.disc.draw()
+            for disc in fighter.discs:
+                disc.draw()
 
         self.draw_aim_line()
 
         # The HUD and overlays stay fixed on the screen.
         self.screen.use()
+        if self.white_flash > 0:
+            arcade.draw_lrbt_rectangle_filled(-4000, WIDTH + 4000, -4000, HEIGHT + 4000,
+                                              (255, 255, 255, int(210 * self.white_flash)))
         self.draw_hud()
         self.draw_announcer()
+        self.draw_bubbles()
 
         if self.fade > 0:
             arcade.draw_lrbt_rectangle_filled(-4000, WIDTH + 4000, -4000, HEIGHT + 4000,
@@ -3800,37 +5730,62 @@ class GameView(BaseView):
         self.draw_fps()
 
     def draw_light_pools(self):
+        for npc in self.bystanders:
+            if not npc.gone:
+                draw_light_pool(npc.x, npc.y, 70, npc.color, 0.7)
+        if self.overcharge_iframes > 0 and self.player.alive:
+            t = self.overcharge_iframes / OVERCHARGE_IFRAMES
+            arcade.draw_circle_outline(self.player.x, self.player.y, 18 + 18 * (1.0 - t),
+                                       with_alpha(WHITE_HOT, 200 * t), 3)
         for fighter in self.fighters:
             if fighter.alive:
                 draw_light_pool(fighter.x, fighter.y, 90, fighter.color, 1.0)
-            disc = fighter.disc
-            if disc.state != HELD:
-                draw_light_pool(disc.x, disc.y, 130, fighter.color,
-                                1.0 + disc.flash * 1.5)
+            for disc in fighter.discs:
+                if disc.state != HELD:
+                    draw_light_pool(disc.x, disc.y, 130, fighter.color,
+                                    1.0 + disc.flash * 1.5)
 
-    def draw_exit_gate(self):
-        # A glowing line across the end of the corridor with chevrons pointing at it.
-        bounds = self.arena.bounds
-        gate_x = bounds[2] - CORRIDOR_EXIT_MARGIN
-        mid_y = (bounds[1] + bounds[3]) / 2
+    def draw_campaign_hud(self):
+        # Wave number, and the survive countdown on the last wave.
+        if self.phase in ("corridor", "fading_out", "fading_in", "speech", "wave_speech"):
+            return
+        if self.voice_active:
+            return
+        self.wave_text.text = "WAVE " + str(self.wave_index + 1) + " / " + str(len(self.waves))
+        self.wave_text.draw()
+        if self.level["survive"] > 0 and self.phase in ("fight", "breach"):
+            left = max(0.0, self.level["survive"] - self.wave_time)
+            self.survive_value.text = format_time(math.ceil(left))
+            if self.phase == "breach":
+                self.survive_value.color = ENEMY_COLORS[1]
+            else:
+                self.survive_value.color = WHITE_HOT
+            self.survive_value.draw()
+            self.survive_label.draw()
+
+    def draw_exit_gate(self, gate_x, bottom, top, chevrons):
+        # A glowing line across an exit with chevrons pointing at it.
+        mid_y = (bottom + top) / 2
         pulse = 0.6 + 0.4 * math.sin(self.clock * 4)
 
         glow_on()
-        arcade.draw_line(gate_x, bounds[1], gate_x, bounds[3],
+        arcade.draw_line(gate_x, bottom, gate_x, top,
                          with_alpha(PLAYER_COLOR, 40 * pulse), 18)
-        arcade.draw_line(gate_x, bounds[1], gate_x, bounds[3],
+        arcade.draw_line(gate_x, bottom, gate_x, top,
                          with_alpha(PLAYER_COLOR, 120 * pulse), 7)
-        for i in range(3):
+        for i in range(chevrons):
             chevron_x = gate_x - 44 - i * 30
             wave = 0.5 + 0.5 * math.sin(self.clock * 6 - i * 1.1)
             color = with_alpha(PLAYER_COLOR, 60 + 170 * wave)
             arcade.draw_line(chevron_x - 10, mid_y + 26, chevron_x + 8, mid_y, color, 4)
             arcade.draw_line(chevron_x - 10, mid_y - 26, chevron_x + 8, mid_y, color, 4)
         glow_off()
-        arcade.draw_line(gate_x, bounds[1], gate_x, bounds[3], WHITE_HOT, 2)
+        arcade.draw_line(gate_x, bottom, gate_x, top, WHITE_HOT, 2)
 
     def draw_aim_line(self):
         if self.mode != "playing" or self.finished or self.controls_locked():
+            return
+        if self.is_peaceful():
             return
         if not self.player.alive or self.player.disc.state != HELD:
             return
@@ -3864,15 +5819,25 @@ class GameView(BaseView):
             self.best_kills_text.draw()
             self.time_value.draw()
             self.best_time_text.draw()
+        elif self.is_lobby:
+            if self.phase == "guards":
+                self.draw_pips(46, HEIGHT - 46, self.level["kills"], self.wave_kills, 1)
+            self.draw_lobby_hud()
+        elif self.is_campaign:
+            self.draw_pips(46, HEIGHT - 46, self.level["kills"], self.wave_kills, 1)
+            self.draw_campaign_hud()
         else:
             self.draw_pips(46, HEIGHT - 46, self.level["kills"], self.kills, 1)
         self.draw_pips(WIDTH - 46, HEIGHT - 46, self.lives_total,
                        self.lives_total - self.deaths, -1)
         self.hint.draw()
+        self.draw_upgrade_hud()
 
     def draw_announcer(self):
         # The text box at the top of the screen during the campaign intro.
-        if not self.is_campaign or self.phase != "speech":
+        if not self.is_campaign:
+            return
+        if self.phase not in ANNOUNCER_PHASES and not self.voice_active:
             return
         left = 120
         right = WIDTH - 120
@@ -3897,6 +5862,8 @@ class GameView(BaseView):
 
         self.announce_label.draw()
         self.announce_text.draw()
+        if self.phase in DIALOGUE_PHASES and self.talk_line_typed():
+            self.talk_hint.draw()
 
     def draw_overlay(self):
         arcade.draw_lrbt_rectangle_filled(-4000, WIDTH + 4000, -4000, HEIGHT + 4000,
@@ -3912,6 +5879,7 @@ class GameView(BaseView):
 def main():
     window = arcade.Window(WIDTH, HEIGHT, TITLE, resizable=True)
     window.set_minimum_size(640, 440)
+    window.background_color = (0, 0, 0, 255)
     window.save = SaveData()
     if window.save.get("fullscreen"):
         window.set_fullscreen(True)
